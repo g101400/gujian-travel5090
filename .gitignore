@@ -40,3 +40,9 @@ native-shell/gujian-ios/apple-package/
 # ===== 系统文件 =====
 .DS_Store
 Thumbs.db
+
+# ===== 本地 GitHub Token（仅本机持有，被忽略，绝不入库）=====
+# 把 PAT 写入仓库根 .gujian_token（或 .env 里 GUJIAN_GITHUB_TOKEN=xxx），脚本自动读取。
+# 切勿把真实 token 写进任何会被提交的脚本/文档里。
+.gujian_token
+.env

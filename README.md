@@ -61,18 +61,35 @@ git push          # 首次用 git push -u origin main
 
 ### 方式 B：本机（git 出网被代理拦截时）走 GitHub API 推送
 
-某些环境里 `git push/fetch` 连不上 github.com:443（出网只能走服务代理，而 git 用不了带路径的代理地址），但 `curl` 能通。此时用仓库外的辅助脚本 `gujian_api_push.py`（位于 `D:/Users/Claw/gujian_api_push.py`）走 GitHub Git Data REST API 增量同步：
+某些环境里 `git push/fetch` 连不上 github.com:443（出网只能走服务代理，而 git 用不了带路径的代理地址），但 `curl` 能通。此时用仓库内的辅助脚本 `tools/gujian_api_push.py` 走 GitHub Git Data REST API 增量同步。脚本已随仓库走、路径按自身位置自动推算，克隆到任何机器都能直接用。
+
+**先在本机放好 token（两种方式，均被 `.gitignore` 忽略，绝不入库）：**
 
 ```bash
-TOK=你的GitHubPAT python3 D:/Users/Claw/gujian_api_push.py
+# 方式 1：仓库根建 .gujian_token（每行一条，首行生效）
+echo "ghp_xxx或github_pat_xxx" > .gujian_token
+
+# 方式 2：环境变量直接传（最干净，推荐）
+TOK=你的GitHubPAT python3 tools/gujian_api_push.py
 ```
 
-脚本做的事：遍历工作区 → 遵守 `.gitignore` 排除构建产物/密钥 → 把每个文件作为 blob 上传 → 建 tree/commit → 更新 `main` 引用（按内容去重、幂等）。
-- 脚本顶部两行是环境相关的硬编码，换机器推送时按需改：`REPO = "g101400/gujian-travel"`、`LOCAL = r"D:/Users/Claw/android-build/gujian-v31"`。
+**然后推送（从仓库根目录运行）：**
+
+```bash
+cd <仓库根>
+python3 tools/gujian_api_push.py        # 已配 .gujian_token 时
+# 或
+TOK=你的GitHubPAT python3 tools/gujian_api_push.py
+```
+
+脚本做的事：遍历工作区 → 遵守 `.gitignore` 排除构建产物/密钥 → 把每个文件作为 blob 上传 → 建 tree/commit → 更新 `main` 引用（按内容去重、幂等、增量）。
+- `LOCAL` 自动取脚本所在目录的上一级（即仓库根），无需改路径；特殊场景可用环境变量 `LOCAL` 覆盖。
+- 目标仓库 `REPO` 在脚本顶部（`g101400/gujian-travel`），非机密。
 - 需 `repo`（经典）/ `contents` 权限的 PAT；跳过 >25MB 的文件。
 - 该 PAT 为 **fine-grained**，**2026-10-06 到期**，到期后需重新生成。
 
-> 提示：`gujian_api_push.py` 目前放在仓库外（属本地辅助工具，不在版本管理内）。若想让它随仓库走，可把它拷进本仓库（例如 `tools/gujian_api_push.py`）并改用相对路径读取 `LOCAL`，再提交。
+> **密钥管理要点**：token 永远不要写进会被提交的脚本/文档，也不要 commit 任何含 token 的文件。每台机器把自己的 PAT 存进本地被忽略的 `.gujian_token`（或用时用 `TOK=` 环境变量传），脚本自动读取，仓库里只有脚本、没有密钥。
+> 旧的 `D:/Users/Claw/gujian_api_push.py`（路径写死）已弃用，请改用仓库内这份 `tools/gujian_api_push.py`。
 
 ## 版本
 
