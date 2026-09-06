@@ -43,6 +43,37 @@ cp assets/ai_seed.demo.js assets/ai_seed.js
 
 然后在 APP「设置 → 智能AI设置」中填写你自己的 Key。未配置时 AI 功能不可用，但其余功能正常。
 
+## 同步到 GitHub（推送）
+
+仓库：`https://github.com/g101400/gujian-travel`，默认分支 `main`。
+
+### 方式 A：正常联网的机器（推荐，标准 git）
+
+```bash
+git clone https://github.com/g101400/gujian-travel.git
+# 改完代码后
+git add -A
+git commit -m "本次改动说明"
+git push          # 首次用 git push -u origin main
+```
+
+拉取他人/其他设备的改动：`git pull`。
+
+### 方式 B：本机（git 出网被代理拦截时）走 GitHub API 推送
+
+某些环境里 `git push/fetch` 连不上 github.com:443（出网只能走服务代理，而 git 用不了带路径的代理地址），但 `curl` 能通。此时用仓库外的辅助脚本 `gujian_api_push.py`（位于 `D:/Users/Claw/gujian_api_push.py`）走 GitHub Git Data REST API 增量同步：
+
+```bash
+TOK=你的GitHubPAT python3 D:/Users/Claw/gujian_api_push.py
+```
+
+脚本做的事：遍历工作区 → 遵守 `.gitignore` 排除构建产物/密钥 → 把每个文件作为 blob 上传 → 建 tree/commit → 更新 `main` 引用（按内容去重、幂等）。
+- 脚本顶部两行是环境相关的硬编码，换机器推送时按需改：`REPO = "g101400/gujian-travel"`、`LOCAL = r"D:/Users/Claw/android-build/gujian-v31"`。
+- 需 `repo`（经典）/ `contents` 权限的 PAT；跳过 >25MB 的文件。
+- 该 PAT 为 **fine-grained**，**2026-10-06 到期**，到期后需重新生成。
+
+> 提示：`gujian_api_push.py` 目前放在仓库外（属本地辅助工具，不在版本管理内）。若想让它随仓库走，可把它拷进本仓库（例如 `tools/gujian_api_push.py`）并改用相对路径读取 `LOCAL`，再提交。
+
 ## 版本
 
 当前 `3.7.4`（见 `assets/version.json`，本文件为版本唯一真相源）。
