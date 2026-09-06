@@ -12,15 +12,20 @@ Android / Windows(WebView2) / UOS(Linux) / iOS(PWA) 四端共享同一套 Web �
   - `kb_rag.js` 知识库切片与 RAG 检索
   - `ai_module.js` 智能 AI 查询融合
   - `ocr/` 离线 OCR 引擎（tesseract wasm + 训练数据）
-- 原生壳（本仓库默认不含，见下方「原生壳」）：
-  - `native-shell/win-gjian-webview2`（Windows WebView2）
-  - `native-shell/uos-gujian-pyqt6`（UOS PyQt6）
+- `native-shell/` —— 各平台原生壳源码（仅源码入库，构建产物/备份经 `.gitignore` 排除）
+  - `win-gujian-webview2/`（Windows WebView2 原生壳）：`Program.cs` 加载器、`ShuiliMap.csproj`、`app.ico`、`build_msi.bat` + `build_msi.wxs`（WiX 一键打 MSI）
+  - `uos-gujian-pyqt6/`（UOS 原生壳）：`main.py`（PyQt6 + QWebEngineView 承载网页）、`build_deb.sh`（dpkg-deb 一键打包，四类国产架构通用）
 
 ## 构建与运行
 
+> 各原生壳构建前需先把 `assets/` 同步成壳内的 `webroot/`（即「网页资源」目录），再运行对应构建脚本。`webroot/` 是 `assets/` 的构建期拷贝，已被 `.gitignore` 排除，切勿手动提交。
+
 - **Android**：把 `assets/` 打进 APK（通用 WebView 壳）。
-- **Windows**：`native-shell/win-gujian-webview2`（WebView2）。
-- **UOS**：`native-shell/uos-gujian-pyqt6`（PyQt6 + deb 包，架构对照：3A3000/3A4000→mips64el，3A5000+→loongarch64，FT2000/鲲鹏→arm64，其余→amd64）。
+- **Windows**：`native-shell/win-gujian-webview2/`（WebView2）
+  - 开发：`dotnet build`（.NET 8 + Microsoft.Web.WebView2）
+  - 发布：`dotnet publish -c Release` 得到 `古建景点打卡.exe`，再把 `assets/` 拷为壳内 `webroot/`，双击 `build_msi.bat`（需先装 WiX Toolset）生成 `古建景点打卡_Setup.msi`
+- **UOS**：`native-shell/uos-gujian-pyqt6/`（PyQt6 + deb 包）
+  - 先把 `assets/` 拷为壳内 `webroot/`，再 `sudo bash build_deb.sh`（可 `ARCH=mips64el` 显式指定架构；架构对照：3A3000/3A4000→mips64el，3A5000+→loongarch64，FT2000/鲲鹏→arm64，其余→amd64）
 - **iOS**：PWA + 静态 https。
 
 ## AI Key 配置（重要）

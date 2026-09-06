@@ -15,6 +15,14 @@ __pycache__/
 *.apk
 *.zip
 
+# ===== 原生壳（Win/UOS）构建产物 / 备份 / 打包输出：不入库 =====
+# webroot 是 assets/ 的构建期拷贝（含 OCR wasm），由各壳的构建脚本从 assets/ 同步生成，勿提交
+native-shell/**/webroot/
+native-shell/**/webroot_bak_*/
+native-shell/win-gujian-webview2/bin/
+native-shell/win-gujian-webview2/obj/
+native-shell/win-gujian-webview2/publish*/
+
 # ===== 系统文件 =====
 .DS_Store
 Thumbs.db
