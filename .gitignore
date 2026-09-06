@@ -23,6 +23,20 @@ native-shell/win-gujian-webview2/bin/
 native-shell/win-gujian-webview2/obj/
 native-shell/win-gujian-webview2/publish*/
 
+# ===== 古建 Android 原生壳：构建产物 / 签名 / 编译物 / 备份（不入库）=====
+native-shell/android-gujian/assets/      # 与仓库根 assets/ 同源，构建期拷贝
+native-shell/android-gujian/bin/
+native-shell/android-gujian/build/
+native-shell/android-gujian/*.jks        # 签名密钥，严禁入库
+native-shell/android-gujian/*.apk
+native-shell/android-gujian/*.idsig
+native-shell/android-gujian/*.class
+native-shell/android-gujian/*.dex
+native-shell/android-gujian/res_compiled.zip
+
+# ===== 古建 iOS 打包产物（可托管 zip，不入库；PWA 壳 pwa-shell/ 入库）=====
+native-shell/gujian-ios/apple-package/
+
 # ===== 系统文件 =====
 .DS_Store
 Thumbs.db
