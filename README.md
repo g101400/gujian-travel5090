@@ -91,6 +91,22 @@ TOK=你的GitHubPAT python3 tools/gujian_api_push.py
 > **密钥管理要点**：token 永远不要写进会被提交的脚本/文档，也不要 commit 任何含 token 的文件。每台机器把自己的 PAT 存进本地被忽略的 `.gujian_token`（或用时用 `TOK=` 环境变量传），脚本自动读取，仓库里只有脚本、没有密钥。
 > 旧的 `D:/Users/Claw/gujian_api_push.py`（路径写死）已弃用，请改用仓库内这份 `tools/gujian_api_push.py`。
 
+## 发布安装包到 GitHub（Release）与 App 内升级
+
+仓库同时用 **GitHub Releases** 承载四平台可部署安装包（Android APK / Windows MSI·EXE / 统信 UOS deb×4架构 / iOS PWA 托管 zip）。App「设置 → GitHub 升级（检测新版）」会查询本仓库最新 Release，比对版本并列出各平台下载。
+
+发新版本时（从仓库根，token 已配好）：
+```bash
+python3 tools/gh_release.py --repo g101400/gujian-travel5090 --tag v3.7.5 --name "古建景点打卡 v3.7.5" \
+  --notes "本次更新说明" \
+  --asset "D:/Users/Claw/出包_<日期>/android/xxx.apk" \
+  --asset "D:/Users/Claw/出包_<日期>/ios/xxx_可托管.zip" \
+  --asset "D:/Users/Claw/出包_<日期>/uos-xxx" \
+  --asset "D:/Users/Claw/出包_<日期>/win/xxx_Setup.exe" \
+  --asset "D:/Users/Claw/出包_<日期>/win/xxx_Setup.msi"
+```
+脚本自动：打 tag → 建/更新 Release → 上传全部四平台安装包（同名自动替换）。下载页：`https://github.com/g101400/gujian-travel5090/releases`。
+
 ## 版本
 
 当前 `3.7.4`（见 `assets/version.json`，本文件为版本唯一真相源）。
