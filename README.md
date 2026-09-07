@@ -45,12 +45,12 @@ cp assets/ai_seed.demo.js assets/ai_seed.js
 
 ## 同步到 GitHub（推送）
 
-仓库：`https://github.com/g101400/gujian-travel`，默认分支 `main`。
+仓库：`https://github.com/g101400/gujian-travel5090`，默认分支 `main`。
 
 ### 方式 A：正常联网的机器（推荐，标准 git）
 
 ```bash
-git clone https://github.com/g101400/gujian-travel.git
+git clone https://github.com/g101400/gujian-travel5090.git
 # 改完代码后
 git add -A
 git commit -m "本次改动说明"
@@ -84,7 +84,7 @@ TOK=你的GitHubPAT python3 tools/gujian_api_push.py
 
 脚本做的事：遍历工作区 → 遵守 `.gitignore` 排除构建产物/密钥 → 把每个文件作为 blob 上传 → 建 tree/commit → 更新 `main` 引用（按内容去重、幂等、增量）。
 - `LOCAL` 自动取脚本所在目录的上一级（即仓库根），无需改路径；特殊场景可用环境变量 `LOCAL` 覆盖。
-- 目标仓库 `REPO` 在脚本顶部（`g101400/gujian-travel`），非机密。
+- 目标仓库 `REPO` 在脚本顶部（`g101400/gujian-travel5090`），非机密。
 - 需 `repo`（经典）/ `contents` 权限的 PAT；跳过 >25MB 的文件。
 - 该 PAT 为 **fine-grained**，**2026-10-06 到期**，到期后需重新生成。
 

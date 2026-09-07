@@ -10,7 +10,7 @@
 # 在哪拿 token：
 #   GitHub → 右上角头像 → Settings → Developer settings
 #     → Personal access tokens → 选 fine-grained 或 classic
-#   - fine-grained PAT：需对仓库 g101400/gujian-travel 授予 Contents: Read/Write
+#   - fine-grained PAT：需对仓库 g101400/gujian-travel5090 授予 Contents: Read/Write
 #   - classic PAT：需 repo 权限
 # ============================================================
 

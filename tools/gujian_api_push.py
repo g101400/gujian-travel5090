@@ -13,7 +13,7 @@
 # 路径自推算（脚本位于 仓库根/tools/），克隆到任何机器都能直接用，无需改路径。
 import os, sys, json, base64, subprocess, tempfile, datetime
 
-REPO = "g101400/gujian-travel"  # 目标仓库（非机密，可公开）
+REPO = "g101400/gujian-travel5090"  # 目标仓库（公开，5090 命名）
 
 # LOCAL 默认 = 脚本所在目录的上一级（即仓库根）；可用环境变量 LOCAL 覆盖。
 _HERE = os.path.dirname(os.path.abspath(__file__))
