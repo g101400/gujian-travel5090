@@ -109,4 +109,4 @@ python3 tools/gh_release.py --repo g101400/gujian-travel5090 --tag v3.7.5 --name
 
 ## 版本
 
-当前 `3.7.4`（见 `assets/version.json`，本文件为版本唯一真相源）。
+当前 `3.7.5`（见 `assets/version.json`，本文件为版本唯一真相源）。

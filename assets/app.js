@@ -222,9 +222,9 @@
 
   var APPNAME = "古建景点打卡";
 
-  var APP_VERSION = "3.7.4";
+  var APP_VERSION = "3.7.5";
 
-  var APP_BUILD_DATE = "2026-09-05"
+  var APP_BUILD_DATE = "2026-09-07"
 
 
 
@@ -3745,36 +3745,64 @@
 
   /* ---------- 导出古建表格（CSV）---------- */
 
+  /* ---------- 导出古建表格（CSV）---------- */
+
+  // v3.7.5：通用导出命名弹窗（自定义文件名 + 保存文件夹，参照知识库导出 kbExport 交互）
+  function gjExpDialog(title, defName, ext, hintHtml, onGo) {
+
+    try {
+      var html = '<p style="font-size:13px;color:#3a2e28;line-height:1.6">' + hintHtml + '</p>' +
+        '<label class="f" style="display:block;margin:8px 0 4px">文件名（留空=默认）</label>' +
+        '<input class="f" id="gjExpName" style="width:100%;box-sizing:border-box" value="' + esc(defName + "." + ext) + '">' +
+        '<label class="f" style="display:block;margin:8px 0 4px">保存文件夹（安卓可填 Download 下子目录，留空=Download 根目录；Win/统信/网页走系统下载目录）</label>' +
+        '<input class="f" id="gjExpDir" style="width:100%;box-sizing:border-box" placeholder="如：古建导出（可留空）">' +
+        '<div class="form-actions">' +
+          '<button class="btn-save" id="gjExpOk" style="flex:1">导出</button>' +
+          '<button class="btn-cancel" id="gjExpCancel" style="flex:1">取消</button>' +
+        '</div>';
+      $("genTitle").textContent = title; $("genBody").innerHTML = html; openSheet("sheetGen");
+      $("gjExpOk").onclick = function () {
+        var n = ($("gjExpName") && $("gjExpName").value || "").trim() || (defName + "." + ext);
+        if (!/\.[a-zA-Z0-9]+$/.test(n)) n = n + "." + ext;
+        var dir = ($("gjExpDir") && $("gjExpDir").value || "").trim();
+        closeSheet("sheetGen");
+        try { onGo(n, dir); } catch (e) { toast("导出失败：" + (e && e.message || e)); }
+      };
+      $("gjExpCancel").onclick = function () { closeSheet("sheetGen"); };
+    } catch (e) { toast("导出失败：" + (e && e.message || e)); }
+  }
+
+  // 通用保存：安卓优先 saveBlobTo(指定目录+文件名)；否则 <a download> 系统下载
+  function gjSaveOut(dataUrl, textContent, mime, name, folder) {
+
+    var A = window.Android;
+    if (A && typeof A.saveBlobTo === "function") {
+      A.saveBlobTo(dataUrl, folder || "", name);
+      toast("已导出：" + (folder ? "Download/" + folder + "/" : "Download/") + name);
+      return;
+    }
+    var blob = textContent != null ? new Blob([textContent], { type: mime }) : null;
+    if (!blob && dataUrl) { try { blob = dataURLtoBlob(dataUrl); } catch (e) {} }
+    if (blob) { var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); toast("已导出：" + name); return; }
+    toast("已导出（请查收系统下载目录）：" + name);
+  }
+  function dataURLtoBlob(d) {
+    var p = d.split(","); var m = (p[0].match(/data:([^;]+)/) || [])[1] || "application/octet-stream";
+    var bin = atob(p[1]); var u = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+    return new Blob([u], { type: m });
+  }
+
   function exportTable() {
 
-    var rows = [["名称", "省", "市", "类别", "年代", "级别", "经度", "纬度", "介绍", "特点", "打卡次数", "照片数"]];
-
-    HERITAGE.forEach(function (b) {
-
-      rows.push([b.name, b.province, b.city, b.type, b.dynasty, b.level, b.lon, b.lat, b.intro, b.features, (b.checkins || []).length, (b.photos || []).length]);
-
+    if (!HERITAGE.length) { toast("没有可导出的古建"); return; }
+    gjExpDialog("导出古建表格", "古建景点_" + getTodayStr(), "csv", "将导出全部 <b>" + HERITAGE.length + "</b> 条古建为 CSV 表格（Excel/WPS 可直接打开）。", function (name, folder) {
+      var rows = [["名称", "省", "市", "类别", "年代", "级别", "经度", "纬度", "介绍", "特点", "打卡次数", "照片数"]];
+      HERITAGE.forEach(function (b) {
+        rows.push([b.name, b.province, b.city, b.type, b.dynasty, b.level, b.lon, b.lat, b.intro, b.features, (b.checkins || []).length, (b.photos || []).length]);
+      });
+      var csv = "﻿" + rows.map(function (r) { return r.map(function (c) { return '"' + String(c == null ? "" : c).replace(/"/g, '""') + '"'; }).join(","); }).join("\n");
+      gjSaveOut("data:text/csv;charset=utf-8;base64," + b64(csv), csv, "text/csv;charset=utf-8", name, folder);
     });
-
-    var csv = "﻿" + rows.map(function (r) { return r.map(function (c) { return '"' + String(c == null ? "" : c).replace(/"/g, '""') + '"'; }).join(","); }).join("\n");
-
-    var name = "古建景点_" + getTodayStr() + ".csv";
-
-    if (window.Android && typeof window.Android.saveBlob === "function") {
-
-      window.Android.saveBlob("data:text/csv;charset=utf-8;base64," + b64(csv), name);
-
-      toast("已导出：" + name);
-
-    } else {
-
-      var blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-
-      var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click();
-
-      toast("已导出：" + name);
-
-    }
-
   }
 
   function b64(s) { try { return btoa(unescape(encodeURIComponent(s))); } catch (e) { return ""; } }
@@ -3785,16 +3813,11 @@
 
   function exportJson() {
 
-    var name = "古建数据_" + getTodayStr() + ".json";
-
-    var json = JSON.stringify(HERITAGE);
-
-    if (window.Android && typeof window.Android.saveBlob === "function") {
-
-      window.Android.saveBlob("data:application/json;base64," + b64(json), name); toast("已导出：" + name);
-
-    } else { var blob = new Blob([json], { type: "application/json" }); var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); toast("已导出：" + name); }
-
+    if (!HERITAGE.length) { toast("没有可导出的古建"); return; }
+    gjExpDialog("导出数据(JSON)", "古建数据_" + getTodayStr(), "json", "将导出全部 <b>" + HERITAGE.length + "</b> 条古建数据为 JSON（可再次导入恢复）。", function (name, folder) {
+      var json = JSON.stringify(HERITAGE);
+      gjSaveOut("data:application/json;base64," + b64(json), json, "application/json", name, folder);
+    });
   }
 
 
@@ -3905,6 +3928,11 @@
 
     if (!(window.Android && window.Android.exportKmz)) { exportOvkmzLegacy(); return; }
 
+    gjExpDialog("导出 ovkmz", "古建景点_" + getTodayStr(), "ovkmz", "导出奥维 ovkmz（含照片，较大文件走原生流式传输；安卓保存至 Download/古建景点打卡/）。", function (name) {
+      window.__gjOvkmzName = String(name || "").replace(/\.ovkmz$/i, "");
+      doExport();
+    });
+
     function doExport() {
 
       busy("正在整理导出数据…");
@@ -3923,7 +3951,7 @@
 
         ensureWifi("导出 ovkmz（可能 >3GB）", function () {
 
-          var outName = "古建景点_" + getTodayStr() + ".ovkmz";
+          var outName = (window.__gjOvkmzName || ("古建景点_" + getTodayStr())) + ".ovkmz";
 
           var out = window.Android.exportPath(outName);
 
@@ -4515,7 +4543,8 @@
 
       "<p><b>⑫ 统计 / 版本变更 / ⑬ 错误日志排查</b>：信息与帮助内可看统计、版本变更；异常时「错误日志」可查看并复制最近脚本错误。</p>" +
       "<p><b>⑭ 知识库智能检索（RAG）/ 入库</b>：导入的文档智能切片（保持语句完整）并向量化，支持混合检索（向量+关键词+模糊）、内容反查条目、智能生成提示词与智能回答（引用标注来源）；外部文档 pdf/docx/xlsx/csv/网页 智能转 Markdown 入库（OCR 识别）。</p>" +
-      "<p><b>⑮ 升级备份与四端对照单</b>：升级数据导出可自定义文件夹与文件名（默认 古建景点打卡备份_YYYYMMDD.bak），导入前提示确认最新备份并覆盖数据；「四端功能对照单」可查看 Android/Win11/统信UOS/iOS PWA 功能差异。</p>" +
+      "<p><b>⑯ 知识库导出自定义与写备忘录</b>：知识库管理导出 md/txt/html 可自定义文件名（默认 知识库_YYYYMMDD.md/.txt/.html）与保存文件夹（Android 原生目录选择，Win/UOS/iOS 走系统下载目录并提示）；「拍照打卡 → 写备忘录 / 我的备忘录」记录游览随想（所见即所得编辑器，独立存储）。</p>" +
+      "<p><b>⑰ GitHub 升级</b>：「设置 → GitHub 升级（检测新版）」查询最新 Release 并列出四平台安装包下载。</p>" +
 
       "<p style='color:#888;font-size:12px;margin-top:8px'>提示：app 启动时会记录当前版本 / 构建日期 / 运行平台，便于核对是否为最新版。</p>";
 
@@ -4531,7 +4560,9 @@
       ["OCR 外部文档入库（pdf/docx/xlsx/csv）", "✅ 本地引擎", "✅ 浏览器", "✅ 本地引擎", "✅ 浏览器 wasm", "智能转 Markdown 入库"],
       ["升级备份导出自定义目录/文件名", "✅ 原生桥", "✅ 浏览器下载", "✅ 浏览器下载", "✅ 浏览器下载", "默认 古建景点打卡备份_日期.bak"],
       ["写游记 / 我的游记（拍照打卡）", "✅", "✅", "✅", "✅", "v3.7.1 新增"],
-      ["写备忘录 / 我的备忘录", "✅", "✅", "✅", "✅", "与水利/感知同步"],
+      ["知识库导出 md/txt/html 自定义文件名 + 自选文件夹", "✅ 原生桥", "✅ 浏览器下载", "✅ 浏览器下载", "✅ 浏览器下载", "v3.7.5 默认 知识库_YYYYMMDD.md/.txt/.html"],
+      ["GitHub 升级（检测新版，查本渠道 Release）", "✅", "✅", "✅", "✅", "设置→GitHub 升级 列四平台安装包"],
+      ["写备忘录 / 我的备忘录", "✅", "✅", "✅", "✅", "v3.7.5 新增（与写游记同源）"],
       ["5 级景区组织 + 17 类古建类型", "✅", "✅", "✅", "✅", "古建核心"],
       ["每页退出按钮 + 三击空白呼出主菜单", "✅", "✅", "✅", "✅", "全平台一致"]
     ];
@@ -4549,7 +4580,15 @@
 
   function openChangelog() {
 
-    var html = '<div class="changelog-ver"><span class="cv">3.7.3</span><span class="cd">2026-09-05</span></div>' +
+    var html = '<div class="changelog-ver"><span class="cv">3.7.5</span><span class="cd">2026-09-07</span></div>' +
+      '<ul class="changelog-list">' +
+      "<li>与水利 v3.59 / 感知 v1.35 同步：①知识库管理导出 md/txt/html 支持自定义文件名（默认 知识库_YYYYMMDD.md/.txt/.html）+ 自选保存文件夹（Android 原生目录选择落 Download/指定目录；Win/UOS/iOS 回退系统下载目录并提示），共享模块 kbExport 三应用同步，改一处即三端生效；②「写游记」同源新增「写备忘录 / 我的备忘录」（所见即所得编辑器，独立存储 gujian_memos_v1），写游记/写备忘录入口双配置 nmGo 分发 + try/catch 兜底，杜绝「运行错误:script error」；③信息与帮助（功能介绍 / 版本变更 / 四端功能对照单）更新至 3.7.5；④逐导出菜单核查自定义文件夹/文件名 + 各子菜单防 script error 冒烟回归。</li>" +
+      '</ul>' +
+      '<div class="changelog-ver"><span class="cv">3.7.4</span><span class="cd">2026-09-05</span></div>' +
+      '<ul class="changelog-list">' +
+      "<li>修复安卓端升级菜单「下载更新包」点击报错：改由系统浏览器/网盘App接管打开。</li>" +
+      '</ul>' +
+      '<div class="changelog-ver"><span class="cv">3.7.3</span><span class="cd">2026-09-05</span></div>' +
       '<ul class="changelog-list">' +
       "<li>知识库智能化与四平台同步（与水利 v3.55 / 感知 v1.31 同步）：①知识库切片保持语句相对完整（整句打包，绝不在句中断开）+ 保存前先切片再落盘；②RAG 智能检索（混合检索/内容反查条目/智能问答/记忆+Hermes）同步 Win/UOS/iOS PWA；③OCR 外部文档入库同步；④升级备份导出自定义目录/文件名（默认 古建景点打卡备份_YYYYMMDD.bak）+ 导入「请确认这是最新备份，导入会覆盖程序中的全部数据」预检与合并/覆盖双模式；⑤写游记/写备忘录「运行错误:script error」修复；⑥信息与帮助新增「四端功能对照单」，功能介绍/版本变更更新至 3.7.3。</li>" +
       '</ul>';
