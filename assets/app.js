@@ -1693,9 +1693,13 @@
 
         { ico: "🛤️", t: "我的打卡路线", f: function () { closeSheet("sheetMenu"); openRoutes(); } },
 
-        { ico: "✍️", t: "写游记", f: function () { closeSheet("sheetMenu"); nmOpenEditor(null); } },
+        { ico: "✍️", t: "写游记", f: function () { closeSheet("sheetMenu"); nmGo("travel", "edit"); } },
 
-        { ico: "📒", t: "我的游记", f: function () { closeSheet("sheetMenu"); nmOpenList(); } }
+        { ico: "📒", t: "我的游记", f: function () { closeSheet("sheetMenu"); nmGo("travel", "list"); } },
+
+        { ico: "🗒️", t: "写备忘录", f: function () { closeSheet("sheetMenu"); nmGo("memo", "edit"); } },
+
+        { ico: "📚", t: "我的备忘录", f: function () { closeSheet("sheetMenu"); nmGo("memo", "list"); } }
 
       ]},
 
@@ -6252,8 +6256,16 @@ function nmAskAI() {
 
 /* 兼容旧浏览器：若无 URL.createObjectURL 则尝试复制文本兜底 */
 
-/* 古建：游记模块配置（v3.7.1） */
-nmInstall({ kind: "游记", docNoun: "古建", appName: "古建景点打卡", lsKey: "gujian_notes_v1", fileTag: "gujian", bindLabel: "绑定古建", recs: function () { return HERITAGE; }, recName: function (r) { return (r.name || "?") + (r.city ? ("（" + r.city + "）") : ""); } });
+/* 古建：游记 + 备忘录 双记录模块配置（共用同一套 nm 编辑器，点击菜单时经 nmGo 切换 nmCfg，异常 try/catch 兜底不出现 script error） */
+var nmTravelCfg = { kind: "游记", docNoun: "古建", appName: "古建景点打卡", lsKey: "gujian_notes_v1", fileTag: "gujian", bindLabel: "绑定古建", recs: function () { return HERITAGE; }, recName: function (r) { return (r.name || "?") + (r.city ? ("（" + r.city + "）") : ""); } };
+var nmMemoCfg = { kind: "备忘录", docNoun: "古建", appName: "古建景点打卡", lsKey: "gujian_memos_v1", fileTag: "gujian", bindLabel: "绑定古建", recs: function () { return HERITAGE; }, recName: function (r) { return (r.name || "?") + (r.city ? ("（" + r.city + "）") : ""); } };
+function nmGo(kind, act) {
+  try {
+    nmCfg = (kind === "memo") ? nmMemoCfg : nmTravelCfg;
+    if (act === "edit") nmOpenEditor(null); else nmOpenList();
+  } catch (e) { try { toast("打开" + (kind === "memo" ? "备忘录" : "游记") + "失败：" + (e && e.message || e)); } catch (e2) {} }
+}
+nmInstall(nmTravelCfg);
 /* ===== 升级 / 数据备份 模块（古建 / 水利一张图 / 水利感知 三平台共享） =====
  * 注入方式：cat upgrade_funcs.src.js cfg_up_<平台>.js >> app.js
  * 菜单项调用：upOpenExport() / upOpenImport() / upOpenUpgrade() （函数声明 hoist，挂在 buildMenu 前即可用）
