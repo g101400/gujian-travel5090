@@ -3898,7 +3898,7 @@
 
         "<OvAttr><OvIcon>1</OvIcon><OvIconNum>0</OvIconNum>" + (atta ? "<OvAttaList>" + atta + "</OvAttaList>" : "") + "</OvAttr>" +
 
-        geo + "</Placemark>";
+        (geo ? "<OvCoordType>CGCS2000</OvCoordType>" : "") + geo + "</Placemark>";
 
     }
 
@@ -4284,6 +4284,11 @@
   function parseKmzWithPhotos(xml, photos) {
 
     photos = photos || [];
+
+    // v3.61：剥奥维 doc.kml 串首 UTF-8 BOM（同水利 v3.61 修复：DOMParser 报 XML 声明不在实体开头）
+    xml = String(xml == null ? "" : xml);
+    if (xml.charCodeAt(0) === 0xFEFF) xml = xml.slice(1);
+    xml = xml.replace(/^(\s+)(?=<\?xml)/i, "");
 
     var out = [];
 
