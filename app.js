@@ -235,9 +235,9 @@
 
   var APPNAME = "古建景点打卡";
 
-  var APP_VERSION = "3.7.6";
+  var APP_VERSION = "3.7.7";
 
-  var APP_BUILD_DATE = "2026-09-07"
+  var APP_BUILD_DATE = "2026-09-08"
 
 
 
@@ -1724,6 +1724,65 @@
   /* ---------- 菜单 ---------- */
 
   /* ---------- v3.7.6：隐藏子菜单（不常用菜单可隐藏以简化界面，隐藏后不再显示并自动存默认值） ---------- */
+
+
+  /* ---------- v3.7.7 菜单收藏/隐藏统一 API（作用域内补齐，杜绝 getFavMenus 未定义） ---------- */
+
+  function menuTitleOf(k) {
+
+    try { if (window.__gjMenuIndex && window.__gjMenuIndex[k] && window.__gjMenuIndex[k].t) return window.__gjMenuIndex[k].t; } catch (e) {}
+
+    try { if (window.__menuTitle && window.__menuTitle[k]) return window.__menuTitle[k]; } catch (e) {}
+
+    return String(k || "");
+
+  }
+
+  // 古建收藏实际存储键为 gujian_favorites_v32（_v32_favGet），这里映射过去，保证「快捷常用」只有一份数据
+
+  function getFavMenus() { try { return _v32_favGet(); } catch (e) { try { return JSON.parse(localStorage.getItem("favMenus") || "[]"); } catch (e2) { return []; } } }
+
+  function setFavMenus(a) { try { localStorage.setItem("gujian_favorites_v32", JSON.stringify(a || [])); } catch (e) {} }
+
+  function toggleFavMenu(k, done) {
+
+    var on0 = false;
+
+    try { on0 = _v32_favHas(k); } catch (e) { on0 = getFavMenus().indexOf(k) >= 0; }
+
+    var title = menuTitleOf(k) || String(k || "");
+
+    ask(on0 ? "取消收藏" : "收藏子菜单",
+
+      on0 ? ("确定把「<b>" + esc(title) + "</b>」从快捷常用移除吗？") : ("确定把「<b>" + esc(title) + "</b>」添加到快捷常用吗？"),
+
+      [{ t: on0 ? "确定移除" : "确定添加", cls: "btn-confirm2", v: 1 }, { t: "取消", cls: "btn-cancel", v: 0 }],
+
+      function (ok) {
+
+        if (!ok) { if (done) done(on0); return; }
+
+        var on = false;
+
+        try { on = _v32_favToggle(k); } catch (e) {
+
+          var f = getFavMenus(); var i = f.indexOf(k);
+
+          if (i >= 0) f.splice(i, 1); else f.push(k);
+
+          setFavMenus(f); on = i < 0;
+
+        }
+
+        try { buildMenu(); } catch (e) {}
+
+        toast(on ? "已加入快捷常用：" + title : "已移出快捷常用：" + title);
+
+        if (done) done(on);
+
+      });
+
+  }
 
   var PROTECTED_HIDDEN_T = ["恢复隐藏的子菜单（全部）", "已隐藏子菜单列表（点击恢复）", "快捷常用设置"];
 
@@ -4328,6 +4387,31 @@
     });
 
     save(); render();
+
+      // v3.63 导入后自动定位（安卓 WebView 导入后「显示不正常 / 不能放大」根因修复）
+
+      try {
+
+        if (typeof map !== "undefined" && map && map.invalidateSize) { try { map.invalidateSize(); } catch (e) {} }
+
+        var __pts = (added || []).filter(function (nb) {
+
+          return nb && isFinite(nb.lat) && isFinite(nb.lon) && (Math.abs(nb.lat) > 1e-6 || Math.abs(nb.lon) > 1e-6);
+
+        });
+
+        if (__pts.length && typeof map !== "undefined" && map && map.fitBounds && typeof L !== "undefined") {
+
+          var __b = L.latLngBounds(__pts.map(function (p) { return [p.lat, p.lon]; }));
+
+          try { map.fitBounds(__b.pad(0.2), { maxZoom: 16, animate: false }); } catch (e) {}
+
+          setTimeout(function () { try { map.invalidateSize(); } catch (e) {} }, 300);
+
+        }
+
+      } catch (e) {}
+
 
     if (window.idle) window.idle();
 
