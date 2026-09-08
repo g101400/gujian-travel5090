@@ -1,9 +1,9 @@
 {
   "app": "古建景点打卡",
   "package": "com.gujian.travel",
-  "version": "3.7.5",
-  "versionCode": 34,
-  "buildDate": "2026-09-07",
+  "version": "3.7.6",
+  "versionCode": 35,
+  "buildDate": "2026-09-08",
   "author": "小七",
   "seedCount": 1032,
   "provinces": 34,

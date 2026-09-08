@@ -1,3 +1,16 @@
+/* ===== v3.62 防「运行错误:script error」全局兜底（勿删）=====
+   历史版本/动态注入模块可能裸引用收藏与隐藏菜单的读写函数，一旦某个分支未定义，
+   ReferenceError 会被 window.onerror 捕获成「运行错误:script error」并中断菜单渲染。
+   这里统一补齐为基于 localStorage 的安全实现，缺失时静默降级。 */
+(function () {
+  function _read(key) { try { var v = JSON.parse(localStorage.getItem(key) || "[]"); return v && v.length !== undefined ? v : []; } catch (e) { return []; } }
+  function _write(key, v) { try { localStorage.setItem(key, JSON.stringify(v || [])); } catch (e) {} }
+  if (typeof window.getFavMenus !== "function") window.getFavMenus = function () { return _read("favMenus"); };
+  if (typeof window.setFavMenus !== "function") window.setFavMenus = function (v) { _write("favMenus", v); };
+  if (typeof window.getHiddenMenus !== "function") window.getHiddenMenus = function () { return _read("hiddenMenus"); };
+  if (typeof window.setHiddenMenus !== "function") window.setHiddenMenus = function (v) { _write("hiddenMenus", v); };
+})();
+
 /* 古建景点打卡 — 离线 WebView 应用逻辑（模仿水利一张图，域改为古建文物） */
 
 (function () {
@@ -222,7 +235,7 @@
 
   var APPNAME = "古建景点打卡";
 
-  var APP_VERSION = "3.7.5";
+  var APP_VERSION = "3.7.6";
 
   var APP_BUILD_DATE = "2026-09-07"
 
@@ -538,6 +551,41 @@
       try { if (window.Android && typeof window.Android.readPhoto === "function") return window.Android.readPhoto(p.file); } catch (e) {}
 
       return "";
+
+    }
+
+    return p.data || "";
+
+  }
+  // v3.7.6：灯箱全图——安卓走「大缩略图」避免 readPhoto 回传整图 base64 超过 JS<->Java 桥上限导致空白；
+  // 浏览器端（Win/UOS/iOS）按本地 HTTP 服务 origin 解析相对路径。
+  function photoFullSrc(p) {
+    // v3.62：优先走磁盘大缩略图的 file:// 路径（只回传几十字节，绝不会跨桥失败）
+
+    if (p.file && window.Android && typeof window.Android.bigPhotoUrl === "function") {
+
+      try { var u1 = window.Android.bigPhotoUrl(p.file, 1600); if (u1 && u1.length > 8) return u1; } catch (e) {}
+
+    }
+
+
+    if (p.file && window.Android && typeof window.Android.ensureThumb === "function") {
+
+      try { var t1 = window.Android.ensureThumb(p.file, 1600); if (t1 && t1.length > 64) return t1; } catch (e) {}
+
+    }
+
+    if (p.file && window.Android && typeof window.Android.ensureThumb === "function") {
+
+      try { var t2 = window.Android.ensureThumb(p.file, 1024); if (t2 && t2.length > 64) return t2; } catch (e) {}
+
+    }
+
+    if (p.file) {
+
+      try { if (window.Android && typeof window.Android.readPhoto === "function") { var r = window.Android.readPhoto(p.file); if (r && r.length > 64) return r; } } catch (e) {}
+
+      try { return new URL(p.file, location.href).href; } catch (e) { return p.file; }
 
     }
 
@@ -1675,6 +1723,114 @@
 
   /* ---------- 菜单 ---------- */
 
+  /* ---------- v3.7.6：隐藏子菜单（不常用菜单可隐藏以简化界面，隐藏后不再显示并自动存默认值） ---------- */
+
+  var PROTECTED_HIDDEN_T = ["恢复隐藏的子菜单（全部）", "已隐藏子菜单列表（点击恢复）", "快捷常用设置"];
+
+  function menuKeyOf(it) { return "t:" + (it && it.t ? it.t : ""); }
+
+  function getHiddenMenus() { try { return JSON.parse(localStorage.getItem("hiddenMenus") || "[]"); } catch (e) { return []; } }
+
+  function setHiddenMenus(a) { try { localStorage.setItem("hiddenMenus", JSON.stringify(a)); } catch (e) {} }
+
+  function isHiddenMenu(k) { return getHiddenMenus().indexOf(k) >= 0; }
+
+  function setMenuHidden(k, hide) {
+
+    var h = getHiddenMenus();
+
+    var i = h.indexOf(k);
+
+    if (hide && i < 0) h.push(k);
+
+    if (!hide && i >= 0) h.splice(i, 1);
+
+    setHiddenMenus(h);
+
+  }
+
+  function hideSubMenu(k, title) {
+
+    if (PROTECTED_HIDDEN_T.indexOf(title) >= 0) { toast("该菜单为管理入口，不可隐藏"); return; }
+
+    ask("隐藏子菜单", "确定隐藏子菜单「<b>" + esc(title || k) + "</b>」吗？<br><br>隐藏后该菜单不再显示，可到 设置 → 已隐藏子菜单 恢复。",
+
+      [{ t: "取消", cls: "btn-cancel", v: 0 }, { t: "确定隐藏", cls: "btn-confirm2", v: 1 }],
+
+      function (ok) {
+
+        if (!ok) return;
+
+        setMenuHidden(k, true);
+
+        try { buildMenu(); } catch (e) {}
+
+        toast("已隐藏「" + (title || k) + "」（设置→已隐藏子菜单 可恢复）");
+
+      });
+
+  }
+
+  function restoreSubMenu(k) { setMenuHidden(k, false); try { buildMenu(); } catch (e) {} }
+
+  function restoreAllHiddenMenus() {
+
+    var h = getHiddenMenus();
+
+    if (!h.length) { toast("当前没有隐藏的子菜单"); return; }
+
+    ask("恢复隐藏的子菜单", "将把全部 <b>" + h.length + "</b> 个已隐藏子菜单恢复显示，是否继续？",
+
+      [{ t: "取消", cls: "btn-cancel", v: 0 }, { t: "全部恢复", cls: "btn-confirm2", v: 1 }],
+
+      function (ok) { if (!ok) return; setHiddenMenus([]); try { buildMenu(); } catch (e) {} toast("已恢复全部隐藏的子菜单"); });
+
+  }
+
+  function openHiddenMenuList() {
+
+    var idx = window.__gjMenuIndex || {};
+
+    var hidden = getHiddenMenus().filter(function (k) { return idx[k]; });
+
+    var html = '<p style="font-size:13px;color:#555;margin:0 0 10px">已隐藏的子菜单将不再显示在菜单中；点击右侧「恢复显示」即可重新出现。</p>';
+
+    if (!hidden.length) { html += '<p style="text-align:center;color:#999;padding:24px 0">当前没有隐藏的子菜单</p>'; }
+
+    else {
+
+      html += '<div style="max-height:50vh;overflow:auto">';
+
+      hidden.forEach(function (k) {
+
+        html += '<div style="display:flex;align-items:center;justify-content:space-between;border:1px solid var(--border);border-radius:8px;padding:7px 10px;margin-bottom:6px">' +
+
+          '<span>' + (idx[k].ico || "📄") + ' ' + esc(idx[k].t || k) + '</span>' +
+
+          '<button class="btn-save" style="margin:0;padding:3px 10px" onclick="restoreMenuFromPanel(\'' + esc(k) + '\')">恢复显示</button>' +
+
+          '</div>';
+
+      });
+
+      html += '</div><p style="text-align:right;margin:8px 0 0"><button class="btn-cancel" onclick="restoreAllHiddenFromPanel()">全部恢复</button></p>';
+
+    }
+
+    html += '<div class="form-actions"><button class="btn-cancel" onclick="closeSheet(\'sheetGen\')">关闭</button></div>';
+
+    $("genTitle").textContent = "已隐藏子菜单";
+
+    $("genBody").innerHTML = html;
+
+    openSheet("sheetGen");
+
+  }
+
+  window.restoreMenuFromPanel = function (k) { restoreSubMenu(k); openHiddenMenuList(); toast("已恢复显示"); };
+
+  window.restoreAllHiddenFromPanel = function () { setHiddenMenus([]); try { buildMenu(); } catch (e) {} openHiddenMenuList(); toast("已恢复全部隐藏的子菜单"); };
+
   function buildMenu() {
 
     var topItems = [
@@ -1765,6 +1921,10 @@
 
     groups.push({ g: "设置", ico: "⚙️", items: [
 
+      { ico: "🙈", t: "恢复隐藏的子菜单（全部）", f: function () { closeSheet("sheetMenu"); restoreAllHiddenMenus(); } },
+
+      { ico: "🗂️", t: "已隐藏子菜单列表（点击恢复）", f: function () { closeSheet("sheetMenu"); openHiddenMenuList(); } },
+
       { ico: "🚫", t: "删除古建", f: deleteHeritage },
 
       { ico: "♻️", t: "恢复初始数据", f: resetData },
@@ -1820,6 +1980,10 @@
     });
 
     groups.forEach(function (grp, gi) {
+      var __vis = grp.items.filter(function (it) { return !isHiddenMenu(menuKeyOf(it)); });
+
+      if (!__vis.length) return;
+
 
       html += '<div class="menu-group collapsed" data-gi="' + gi + '">' +
 
@@ -1828,6 +1992,10 @@
         '<div class="menu-group-body">';
 
       grp.items.forEach(function (it, ii) {
+        if (isHiddenMenu(menuKeyOf(it))) return;
+
+        try { window.__gjMenuIndex = window.__gjMenuIndex || {}; window.__gjMenuIndex[menuKeyOf(it)] = { t: it.t, ico: it.ico }; } catch (e) {}
+
 
         html += '<div class="menu-item sub" data-gi="' + gi + '" data-ii="' + ii + '"><span class="menu-ico">' + it.ico + '</span><span>' + esc(it.t) + "</span></div>";
 
@@ -1863,25 +2031,64 @@
 
       fav.style.cssText = "float:right;margin-left:8px;padding:0 6px;color:" + (starred ? "#f0a020" : "#c8cdd2") + ";font-size:15px;cursor:pointer;user-select:none";
 
-      fav.textContent = starred ? "★" : "☆";
+      fav.innerHTML = '<svg width="17" height="17" viewBox="0 0 24 24" fill="' + (starred ? "currentColor" : "none") + '" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.23l-5.8 3.13 1.11-6.46-4.7-4.58 6.49-.94z"/></svg>';
 
       el.appendChild(fav);
+      var mkey = menuKeyOf(it);
+
+      if (PROTECTED_HIDDEN_T.indexOf(it.t) < 0) {
+
+        var hs = document.createElement("span");
+
+        hs.className = "menu-hide";
+
+        hs.dataset.k = mkey;
+
+        hs.title = "隐藏该菜单（可在 设置→已隐藏子菜单 恢复）";
+
+        hs.style.cssText = "float:right;margin-left:6px;padding:2px 4px;cursor:pointer;color:#8a939b;line-height:0;display:inline-flex;align-items:center";
+
+        hs.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+
+        el.appendChild(hs);
+
+        hs.onclick = function (ev) { ev.stopPropagation(); ev.preventDefault(); hideSubMenu(mkey, it.t); };
+
+      }
+
 
       fav.onclick = function (ev) {
 
         ev.stopPropagation(); ev.preventDefault();
 
-        var on = _v32_favToggle(key);
+        var on0 = _v32_favHas(key);
 
-        fav.textContent = on ? "★" : "☆";
+        ask(on0 ? "取消收藏" : "收藏子菜单",
 
-        fav.style.color = on ? "#f0a020" : "#c8cdd2";
+          on0 ? ("确定把「<b>" + esc(it.t) + "</b>」从快捷常用移除吗？") : ("确定把「<b>" + esc(it.t) + "</b>」添加到快捷常用吗？"),
 
-        toast(on ? "已加入快捷常用：" + it.t : "已移出快捷常用");
+          [{ t: "取消", cls: "btn-cancel", v: 0 }, { t: on0 ? "确定移除" : "确定添加", cls: "btn-confirm2", v: 1 }],
 
-        try { buildMenu(); } catch (e) {}
+          function (ok) {
+
+            if (!ok) return;
+
+            var on = _v32_favToggle(key);
+
+            fav.style.color = on ? "#f0a020" : "#c8cdd2";
+
+            var sv = fav.querySelector("svg");
+
+            if (sv) sv.setAttribute("fill", on ? "currentColor" : "none");
+
+            toast(on ? "已加入快捷常用：" + it.t : "已移出快捷常用");
+
+            try { buildMenu(); } catch (e) {}
+
+          });
 
       };
+
 
     });
 
@@ -1895,7 +2102,7 @@
 
       el.onclick = function (ev) {
 
-        if (ev && ev.target && ev.target.closest && ev.target.closest(".menu-fav")) return;
+        if (ev && ev.target && ev.target.closest && ev.target.closest(".menu-fav") || ev.target.closest(".menu-hide")) return;
 
         var gi = +el.dataset.gi, ii = +el.dataset.ii;
 
@@ -1916,6 +2123,21 @@
     if (typeof _v32_injectFavoritesGroup === "function") try { _v32_injectFavoritesGroup(); } catch(e){}
 
   }
+
+  // v3.62：buildMenu 兜底包装——内部任何异常只提示，不再让整个菜单崩掉
+  try {
+    var __rawBuildMenu = buildMenu;
+    buildMenu = function () {
+      try { return __rawBuildMenu.apply(null, arguments); }
+      catch (e) {
+        try { console.error("buildMenu failed:", e); } catch (_) {}
+        try { if (typeof toast === "function") toast("菜单渲染异常已跳过：" + ((e && e.message) || e)); } catch (_) {}
+        return "";
+      }
+    };
+    if (typeof window.buildMenu === "function") window.buildMenu = buildMenu;
+  } catch (e) {}
+
 
 
 
@@ -1944,6 +2166,8 @@
         var parts = k.split(":"); var gi = +parts[0], ii = +parts[1];
 
         if (!groupsArr || !groupsArr[gi] || !groupsArr[gi].items[ii]) return;
+        if (isHiddenMenu(menuKeyOf(it))) return;
+
 
         var it = groupsArr[gi].items[ii];
 
@@ -3898,7 +4122,7 @@
 
         "<OvAttr><OvIcon>1</OvIcon><OvIconNum>0</OvIconNum>" + (atta ? "<OvAttaList>" + atta + "</OvAttaList>" : "") + "</OvAttr>" +
 
-        geo + "</Placemark>";
+        (geo ? "<OvCoordType>CGCS2000</OvCoordType>" : "") + geo + "</Placemark>";
 
     }
 
@@ -4284,6 +4508,11 @@
   function parseKmzWithPhotos(xml, photos) {
 
     photos = photos || [];
+
+    // v3.61：剥奥维 doc.kml 串首 UTF-8 BOM（同水利 v3.61 修复：DOMParser 报 XML 声明不在实体开头）
+    xml = String(xml == null ? "" : xml);
+    if (xml.charCodeAt(0) === 0xFEFF) xml = xml.slice(1);
+    xml = xml.replace(/^(\s+)(?=<\?xml)/i, "");
 
     var out = [];
 
@@ -4713,6 +4942,12 @@
     window.__lb = { id: id, i: i };
 
     $("lbImg").src = photoSrc(b.photos[i]);
+    $("lbImg").onerror = function () {
+      var fb = photoSrc(b.photos[i]);
+      if (fb && fb !== $("lbImg").getAttribute("src")) { $("lbImg").onerror = null; $("lbImg").setAttribute("src", fb); return; }
+      $("lbImg").onerror = null;
+      try { toast("照片加载失败：文件可能已被清理，请重新导入或删除该照片"); } catch (e) {}
+    };
 
     $("lbCap").textContent = (b.photos[i].caption || b.name || "");
 
