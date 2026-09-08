@@ -6864,7 +6864,8 @@ window.upOpenUrl = upOpenUrl;
 /* ===== GitHub 升级（5090 仓库发布渠道）=====
  * 三应用通用：设置菜单「GitHub 升级（检测新版）」→ 查 GitHub Releases 最新版，
  * 与本地版本比对并列出当前平台安装包下载。古建 single → gujian-travel5090。 */
-var upGithubCfg = { single: "g101400/gujian-travel5090" };
+var upGithubCfg = { single: "g101400/gujian-travel5090" }
+var upPwaCfg = { single: "https://g101400.github.io/gujian-travel5090/" };;
 function ghChannel() {
   if (typeof getReleaseChannel === "function") { try { return getReleaseChannel(); } catch (e) {} }
   return "single";
@@ -6903,6 +6904,7 @@ function ghOpenUpgrade() {
     '<div style="font-size:13px;color:#555;margin:6px 0">从 GitHub Releases 检测该渠道最新版并下载四平台安装包（公开版免登录；内部版仓库私有，需 GitHub 账号且有该仓库权限）。</div>' +
     '<div class="up-btns">' +
       '<button class="btn-save" onclick="ghCheck()">🔍 检测 GitHub 新版</button>' +
+      '<button class="btn-save" onclick="ghOpenPwa()">🍎 iOS 在线地址</button>' +
       '<button class="btn-cancel" onclick="closeSheet(\'sheetGen\')">关闭</button>' +
     "</div>" +
     '<div id="ghMsg" style="font-size:13px;margin-top:10px;min-height:18px"></div>';
@@ -6942,4 +6944,12 @@ function ghCheck() {
       if (msg) msg.innerHTML = '<span class="up-warn">检测失败：' + esc((e && e.message) ? e.message : "网络不可用") + '。</span><div class="up-btns" style="margin-top:8px"><button class="btn-save" onclick="upOpenUrl(event,\'https://github.com/' + esc(repo) + '/releases/latest\')">在浏览器打开发布页</button></div>';
     });
 }
+function ghOpenPwa() {
+  var m = (typeof upPwaCfg !== "undefined") ? upPwaCfg : {};
+  var url = m[ghChannel()] || m["single"] || "";
+  if (!url) { try { toast("未配置 iOS 在线地址"); } catch (e) {} return false; }
+  try { toast("已打开 iOS 在线地址，Safari 中「分享→添加到主屏幕」即可安装"); } catch (e) {}
+  return upOpenUrl(null, url);
+}
+window.ghOpenPwa = ghOpenPwa;
 window.ghOpenUpgrade = ghOpenUpgrade; window.ghCheck = ghCheck;
