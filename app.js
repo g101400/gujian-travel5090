@@ -4893,7 +4893,13 @@
 
   function openChangelog() {
 
-    var html = '<div class="changelog-ver"><span class="cv">3.7.5</span><span class="cd">2026-09-07</span></div>' +
+    var html = '<div class="changelog-ver"><span class="cv">3.7.7</span><span class="cd">2026-09-08</span></div>' +
+      '<ul class="changelog-list">' +
+      "<li>修复（菜单打开报错根因）：补齐作用域内的收藏/隐藏统一 API（getFavMenus / setFavMenus / menuTitleOf / toggleFavMenu），根治打开菜单报「getFavMenus is not defined」导致菜单整体不渲染的问题；收藏（快捷常用）与隐藏仍保留二次确认，收藏数据与长按收藏共用同一份（gujian_favorites_v32）。</li>" +
+      "<li>修复（安卓导入后显示不正常 / 不能放大）：导入 ovkmz / KML 完成后自动 fitBounds 到导入要素范围，并强制 map.invalidateSize()（安卓 WebView 因浮层反复显隐导致地图尺寸未刷新，表现为手势缩放失效）。</li>" +
+      "<li>回归保持：隐藏/收藏二次确认、deb 端图标内联 SVG、九所统一（水利/感知）、GitHub 自动升级与苹果 PWA 部署；四平台同步。</li>" +
+      '</ul>' +
+      '<div class="changelog-ver"><span class="cv">3.7.5</span><span class="cd">2026-09-07</span></div>' +
       '<ul class="changelog-list">' +
       "<li>与水利 v3.59 / 感知 v1.35 同步：①知识库管理导出 md/txt/html 支持自定义文件名（默认 知识库_YYYYMMDD.md/.txt/.html）+ 自选保存文件夹（Android 原生目录选择落 Download/指定目录；Win/UOS/iOS 回退系统下载目录并提示），共享模块 kbExport 三应用同步，改一处即三端生效；②「写游记」同源新增「写备忘录 / 我的备忘录」（所见即所得编辑器，独立存储 gujian_memos_v1），写游记/写备忘录入口双配置 nmGo 分发 + try/catch 兜底，杜绝「运行错误:script error」；③信息与帮助（功能介绍 / 版本变更 / 四端功能对照单）更新至 3.7.5；④逐导出菜单核查自定义文件夹/文件名 + 各子菜单防 script error 冒烟回归。</li>" +
       '</ul>' +
