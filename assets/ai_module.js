@@ -1847,6 +1847,7 @@
   var API = {
     init: init,
     getMenuGroups: getMenuGroups,
+    setOnline: setOnline, isOnline: onlineEnabled,
     _openSettings: openSettings,
     _openSmartQuery: openSmartQuery,
     _openSmartUpdate: openSmartUpdate,
