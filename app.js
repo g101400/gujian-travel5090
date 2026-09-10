@@ -235,9 +235,9 @@
 
   var APPNAME = "古建景点打卡";
 
-  var APP_VERSION = "3.7.8";
+  var APP_VERSION = "3.7.9";
 
-  var APP_BUILD_DATE = "2026-09-09"
+  var APP_BUILD_DATE = "2026-09-10"
 
 
 
@@ -2101,7 +2101,7 @@
 
       fav.title = "添加/移除快捷常用";
 
-      fav.style.cssText = "float:right;margin-left:8px;padding:0 6px;color:" + (starred ? "#f0a020" : "#c8cdd2") + ";font-size:15px;cursor:pointer;user-select:none";
+      fav.style.cssText = "float:right;margin-left:14px;padding:6px 10px;color:" + (starred ? "#f0a020" : "#c8cdd2") + ";font-size:15px;cursor:pointer;user-select:none";
 
       fav.innerHTML = '<svg width="17" height="17" viewBox="0 0 24 24" fill="' + (starred ? "currentColor" : "none") + '" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.23l-5.8 3.13 1.11-6.46-4.7-4.58 6.49-.94z"/></svg>';
 
@@ -2118,7 +2118,7 @@
 
         hs.title = "隐藏该菜单（可在 设置→已隐藏子菜单 恢复）";
 
-        hs.style.cssText = "float:right;margin-left:6px;padding:2px 4px;cursor:pointer;color:#8a939b;line-height:0;display:inline-flex;align-items:center";
+        hs.style.cssText = "float:right;margin-left:26px;padding:6px 10px;cursor:pointer;color:#8a939b;line-height:0;display:inline-flex;align-items:center";
 
         hs.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
 
@@ -4092,9 +4092,10 @@
 
     if (!HERITAGE.length) { toast("没有可导出的古建"); return; }
     gjExpDialog("导出古建表格", "古建景点_" + getTodayStr(), "csv", "将导出全部 <b>" + HERITAGE.length + "</b> 条古建为 CSV 表格（Excel/WPS 可直接打开）。", function (name, folder) {
-      var rows = [["名称", "省", "市", "类别", "年代", "级别", "经度", "纬度", "介绍", "特点", "打卡次数", "照片数"]];
+      var rows = [["名称", "省", "市", "类别", "年代", "级别", "经度", "纬度", "介绍", "特点", "打卡次数", "照片数", "comment"]];
       HERITAGE.forEach(function (b) {
-        rows.push([b.name, b.province, b.city, b.type, b.dynasty, b.level, b.lon, b.lat, b.intro, b.features, (b.checkins || []).length, (b.photos || []).length]);
+        rows.push([b.name, b.province, b.city, b.type, b.dynasty, b.level, b.lon, b.lat, b.intro, b.features, (b.checkins || []).length, (b.photos || []).length,
+          (b.attrs || []).map(function (a) { return a[0] + ":" + a[1]; }).join("|")]);
       });
       var csv = "﻿" + rows.map(function (r) { return r.map(function (c) { return '"' + String(c == null ? "" : c).replace(/"/g, '""') + '"'; }).join(","); }).join("\n");
       gjSaveOut("data:text/csv;charset=utf-8;base64," + b64(csv), csv, "text/csv;charset=utf-8", name, folder);
@@ -4156,7 +4157,7 @@
 
         .filter(function (a) { return a[1]; })
 
-        .map(function (a) { return esc(a[0]) + " : " + esc(a[1]); }).join("|");
+        .map(function (a) { return esc(a[0]) + " : " + esc(a[1]); }).join("|\n");
 
       var atta = "";
 
@@ -4913,7 +4914,16 @@
 
   function openChangelog() {
 
-    var html = '<div class="changelog-ver"><span class="cv">3.7.8</span><span class="cd">2026-09-09</span></div>' +
+    var html = '<div class="changelog-ver"><span class="cv">3.7.9</span><span class="cd">2026-09-10</span></div>' +
+      '<ul class="changelog-list">' +
+      "<li>菜单子项与「隐藏 / 收藏」按钮间距拉大，点击区放大，防误触。</li>" +
+      "<li>导出古建表格新增 comment 列（参数以 | 分隔），与导入侧往返兼容。</li>" +
+      "<li>ovkmz 导出备注改为「键 : 值」以 | + 换行分隔。</li>" +
+      "<li>新增本地向量智能化内核：景点参数反查、类型与地域统计、文档切片关联、报告导出 doc/docx + 预览打印、PDF 转 Word、类型释义知识库（全部离线）。</li>" +
+      "<li>图片预览：电脑端滚轮缩放 + 鼠标拖拽，手机端双指缩放 / 单指拖动 / 长按菜单。</li>" +
+      "<li>游记 / 备忘录支持导出 Word（doc / docx）与 PDF（预览打印另存）。</li>" +
+      '</ul>' +
+      '<div class="changelog-ver"><span class="cv">3.7.8</span><span class="cd">2026-09-09</span></div>' +
       '<ul class="changelog-list">' +
       "<li>版本对齐：水利 / 感知 内部版新增访问口令保护（默认口令=开发者分机号 3305，仅内部版启用；公开版免密）；古建为公开应用、不受口令影响，功能不删不减，全平台回归保持。</li>" +
       '</ul>' +
@@ -6389,6 +6399,70 @@ function nmCurrentNote() {
 }
 
 /* ---------- 导出下载（与导入格式一致，图片以 base64 内嵌）---------- */
+
+/* ---------- v3.68：游记/备忘录 导出 Word / PDF（打印另存） ---------- */
+function nmNoteHtml(n) {
+  var bindName = "";
+  try {
+    var rs = nmCfg.recs() || [];
+    for (var i = 0; i < rs.length; i++) if (rs[i].id === n.bindId) { bindName = nmCfg.recName(rs[i]); break; }
+  } catch (e) {}
+  var h = "<h2>" + (n.title || "（无标题）") + "</h2>";
+  h += "<p style='color:#666;font-size:13px'>" + nmCfg.kind + "　" + (n.time || "") +
+       (bindName ? "　·　" + nmCfg.bindLabel.replace("绑定", "") + "：" + bindName : "") + "</p><hr>";
+  h += (n.html || "") || ("<p>" + (n.text || "") + "</p>");
+  return h;
+}
+function nmNotesHtml(items) {
+  var h = "", i;
+  for (i = 0; i < items.length; i++) {
+    h += nmNoteHtml(items[i]);
+    if (i < items.length - 1) h += "<div style='page-break-after:always'></div>";
+  }
+  return h;
+}
+function nmName(items, ext) {
+  var d = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  return "notes_" + (nmCfg.fileTag || "export") + "_" + d + (items.length > 1 ? "（" + items.length + "条）" : "") + "." + ext;
+}
+function nmExportWord(items) {
+  if (!items || !items.length) { toast("没有可导出的" + nmCfg.kind); return; }
+  var html = nmNotesHtml(items);
+  if (window.KBV && window.KBV.exportDoc) { window.KBV.exportDoc(nmName(items, "doc"), html); return; }
+  var blob = new Blob(["\ufeff<html><head><meta charset='utf-8'></head><body>" + html + "</body></html>"], { type: "application/msword" });
+  var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nmName(items, "doc");
+  document.body.appendChild(a); a.click(); setTimeout(function () { try { a.remove(); } catch (e) {} }, 1500);
+  toast("已导出 Word");
+}
+function nmExportDocx(items) {
+  if (!items || !items.length) { toast("没有可导出的" + nmCfg.kind); return; }
+  if (!(window.KBV && window.KBV.exportDocx)) { toast("当前版本不支持 docx，已改用 doc"); nmExportWord(items); return; }
+  var lines = [];
+  items.forEach(function (n) {
+    var bindName = "";
+    try {
+      var rs = nmCfg.recs() || [];
+      for (var i = 0; i < rs.length; i++) if (rs[i].id === n.bindId) { bindName = nmCfg.recName(rs[i]); break; }
+    } catch (e) {}
+    lines.push("# " + (n.title || "（无标题）"));
+    lines.push("- " + nmCfg.kind + "：" + (n.time || "") + (bindName ? "　" + nmCfg.bindLabel.replace("绑定", "") + "：" + bindName : ""));
+    var txt = String(n.text || (n.html || "").replace(/<[^>]+>/g, " ")).split(/\n+/);
+    txt.forEach(function (t) { if (t && t.trim()) lines.push("- " + t.trim()); });
+    lines.push("");
+  });
+  window.KBV.exportDocx(nmName(items, "docx"), lines);
+}
+function nmExportPdf(items) {
+  if (!items || !items.length) { toast("没有可导出的" + nmCfg.kind); return; }
+  var html = nmNotesHtml(items);
+  if (window.KBV && window.KBV.previewPrint) { window.KBV.previewPrint((items[0].title || nmCfg.kind) + "（打印 / 另存 PDF）", html); return; }
+  var w = window.open("", "_blank");
+  if (!w) { toast("请允许弹窗后重试"); return; }
+  w.document.write("<html><head><meta charset='utf-8'><title>" + (items[0].title || nmCfg.kind) + "</title></head><body>" +
+    "<div style='margin-bottom:12px'><button onclick='window.print()'>🖨 打印 / 另存为 PDF</button></div>" + html + "</body></html>");
+  w.document.close();
+}
+
 function nmDownload(items) {
   var data = { app: nmCfg.appName, kind: nmCfg.kind, version: 1, exportedAt: new Date().toISOString(), items: items };
   var fn = "notes_" + (nmCfg.fileTag || "export") + "_" + new Date().toISOString().slice(0, 10).replace(/-/g, "") + ".json";
@@ -6441,6 +6515,8 @@ function nmOpenEditor(id) {
           (editing ? '<button class="nm-btn nm-ghost" id="nmDel">🗑 删除</button>' : '') +
           '<button class="nm-btn nm-ghost" id="nmAsk">🤖 问AI</button>' +
           '<button class="nm-btn nm-ghost" id="nmExp">⬇ 导出</button>' +
+          '<button class="nm-btn nm-ghost" id="nmExpDoc">📄 Word</button>' +
+          '<button class="nm-btn nm-ghost" id="nmExpPdf">🖨 PDF</button>' +
           '<button class="nm-btn nm-save" id="nmSave">💾 保存</button>' +
         '</div>' +
       '</div>' +
@@ -6499,7 +6575,21 @@ function nmOpenEditor(id) {
     var all = nmGetAll().filter(function (n) { return n.id !== editing.id; });
     nmPersist(all); toast("已删除"); mask.remove(); nmOpenList();
   };
-  document.getElementById("nmExp").onclick = function () { nmDownload([nmCurrentNote()]); };
+  document.getElementById("nmExp").onclick = function () {
+  }
+  document.getElementById("nmExpDoc").onclick = function () {
+    var cur = nmEditId ? nmById(nmEditId) : null;
+    if (!cur) { var t = document.getElementById("nmTitle"); var ed2 = document.getElementById("nmEdit");
+      cur = { title: (t && t.value) || nmCfg.kind, html: ed2 ? ed2.innerHTML : "", text: ed2 ? ed2.innerText : "", time: new Date().toLocaleString("zh-CN"), bindId: (document.getElementById("nmBind") || {}).value || "" }; }
+    nmExportWord([cur]);
+  };
+  document.getElementById("nmExpPdf").onclick = function () {
+    var cur = nmEditId ? nmById(nmEditId) : null;
+    if (!cur) { var t = document.getElementById("nmTitle"); var ed2 = document.getElementById("nmEdit");
+      cur = { title: (t && t.value) || nmCfg.kind, html: ed2 ? ed2.innerHTML : "", text: ed2 ? ed2.innerText : "", time: new Date().toLocaleString("zh-CN"), bindId: (document.getElementById("nmBind") || {}).value || "" }; }
+    nmExportPdf([cur]);
+  };
+  function nmUnusedGuard() { nmDownload([nmCurrentNote()]); };
   document.getElementById("nmAsk").onclick = function () { nmAskAI(); };
 }
 
@@ -6558,6 +6648,8 @@ function nmOpenList() {
             '<button class="nm-tb" id="nmNew">✍️ 写' + nmCfg.kind + '</button>' +
             '<button class="nm-tb" id="nmImportBtn">⬆ 导入</button>' +
             '<button class="nm-tb" id="nmExpAll">⬇ 导出</button>' +
+            '<button class="nm-tb" id="nmExpDocAll">📄 Word</button>' +
+            '<button class="nm-tb" id="nmExpPdfAll">🖨 PDF</button>' +
             '<button class="nm-tb" id="nmAskAll">🤖 问AI</button></div>' +
           '<div id="nmListBox"></div>' +
           '<input type="file" id="nmImpFile" accept=".json,application/json" style="display:none">' +
@@ -6572,6 +6664,8 @@ function nmOpenList() {
   mask.onclick = function (e) { if (e.target === mask) mask.remove(); };
   document.getElementById("nmNew").onclick = function () { mask.remove(); nmOpenEditor(null); };
   document.getElementById("nmExpAll").onclick = function () { var a = nmGetAll(); if (!a.length) { toast("还没有" + nmCfg.kind); return; } nmDownload(a); };
+  document.getElementById("nmExpDocAll").onclick = function () { var a = nmGetAll(); if (!a.length) { toast("还没有" + nmCfg.kind); return; } if (confirm("导出 Word：doc（兼容好）请点“确定”；docx（需 Office 2007+）请点“取消”")) { nmExportWord(a); } else { nmExportDocx(a); } };
+  document.getElementById("nmExpPdfAll").onclick = function () { var a = nmGetAll(); if (!a.length) { toast("还没有" + nmCfg.kind); return; } nmExportPdf(a); };
   document.getElementById("nmAskAll").onclick = function () { nmAskAI(); };
   document.getElementById("nmImportBtn").onclick = function () { document.getElementById("nmImpFile").click(); };
   document.getElementById("nmImpFile").onchange = function () {
@@ -7069,3 +7163,67 @@ function ghOpenPwa() {
 }
 window.ghOpenPwa = ghOpenPwa;
 window.ghOpenUpgrade = ghOpenUpgrade; window.ghCheck = ghCheck;
+  /* ---------- v3.68 智能文本解码 ---------- */
+  function looksUtf8Bytes(b) {
+    var i = 0, n = b.length;
+    while (i < n) {
+      var c = b[i];
+      if (c < 0x80) { i++; continue; }
+      var len = c >= 0xF0 ? 4 : (c >= 0xE0 ? 3 : (c >= 0xC0 ? 2 : 0));
+      if (!len) return false;
+      if (i + len > n) return false;
+      for (var j = 1; j < len; j++) { if ((b[i + j] & 0xC0) !== 0x80) return false; }
+      i += len;
+    }
+    return true;
+  }
+  // 自动识别编码：UTF-8(BOM/合法) 优先，否则按 GB18030/GBK 解码（奥维导出的 CSV 多为 GBK）
+  function decodeBytesAuto(bytes) {
+    try {
+      if (!bytes) return "";
+      var b = bytes;
+      if (b.length > 2 && b[0] === 0xEF && b[1] === 0xBB && b[2] === 0xBF) {
+        return new TextDecoder("utf-8").decode(b.subarray ? b.subarray(3) : b.slice(3));
+      }
+      if (looksUtf8Bytes(b)) {
+        try { return new TextDecoder("utf-8").decode(b); } catch (e) {}
+      }
+      try { return new TextDecoder("gb18030").decode(b); } catch (e) {}
+      try { return new TextDecoder("gbk").decode(b); } catch (e) {}
+      return new TextDecoder("utf-8").decode(b);
+    } catch (e) {
+      try { return new TextDecoder("utf-8").decode(bytes); } catch (e2) { return ""; }
+    }
+  }
+  /* ---------- v3.68 属性值串解析（| / 换行 / ; 均可作条目分隔；键:值） ---------- */
+  function parseAttrBlob(t) {
+    t = String(t == null ? "" : t);
+    if (!t.trim()) return [];
+    var pipe = (t.match(/\|/g) || []).length;
+    var semi = (t.match(/[;；]/g) || []).length;
+    var nl = (t.match(/\r?\n/g) || []).length;
+    var parts;
+    if (pipe) parts = t.split(/\|/);
+    else if (semi) parts = t.split(/[;；]/);
+    else if (nl) parts = t.split(/\r?\n/);
+    else parts = [t];
+    var out = [];
+    parts.forEach(function (s) {
+      s = String(s).trim();
+      if (!s) return;
+      var m = s.match(/^([^:：]{1,30})[:：]([\s\S]*)$/);
+      if (m) {
+        var k = m[1].trim(), v = m[2].trim();
+        if (k) out.push([k, v]);
+      }
+    });
+    return out;
+  }
+  // 属性合并：后者覆盖前者（按键）
+  function mergeAttrs(base, add) {
+    var map = {}, order = [];
+    (base || []).forEach(function (a) { if (a && a[0]) { if (!(a[0] in map)) order.push(a[0]); map[a[0]] = a[1]; } });
+    (add || []).forEach(function (a) { if (a && a[0]) { if (!(a[0] in map)) order.push(a[0]); map[a[0]] = a[1]; } });
+    return order.map(function (k) { return [k, map[k]]; });
+  }
+
