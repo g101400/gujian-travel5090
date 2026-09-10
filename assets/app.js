@@ -235,9 +235,9 @@
 
   var APPNAME = "古建景点打卡";
 
-  var APP_VERSION = "3.7.7";
+  var APP_VERSION = "3.7.8";
 
-  var APP_BUILD_DATE = "2026-09-08"
+  var APP_BUILD_DATE = "2026-09-09"
 
 
 
@@ -4913,7 +4913,11 @@
 
   function openChangelog() {
 
-    var html = '<div class="changelog-ver"><span class="cv">3.7.7</span><span class="cd">2026-09-08</span></div>' +
+    var html = '<div class="changelog-ver"><span class="cv">3.7.8</span><span class="cd">2026-09-09</span></div>' +
+      '<ul class="changelog-list">' +
+      "<li>版本对齐：水利 / 感知 内部版新增访问口令保护（默认口令=开发者分机号 3305，仅内部版启用；公开版免密）；古建为公开应用、不受口令影响，功能不删不减，全平台回归保持。</li>" +
+      '</ul>' +
+      '<div class="changelog-ver"><span class="cv">3.7.7</span><span class="cd">2026-09-08</span></div>' +
       '<ul class="changelog-list">' +
       "<li>修复（菜单打开报错根因）：补齐作用域内的收藏/隐藏统一 API（getFavMenus / setFavMenus / menuTitleOf / toggleFavMenu），根治打开菜单报「getFavMenus is not defined」导致菜单整体不渲染的问题；收藏（快捷常用）与隐藏仍保留二次确认，收藏数据与长按收藏共用同一份（gujian_favorites_v32）。</li>" +
       "<li>修复（安卓导入后显示不正常 / 不能放大）：导入 ovkmz / KML 完成后自动 fitBounds 到导入要素范围，并强制 map.invalidateSize()（安卓 WebView 因浮层反复显隐导致地图尺寸未刷新，表现为手势缩放失效）。</li>" +
