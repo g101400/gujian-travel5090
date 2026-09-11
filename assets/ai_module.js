@@ -766,9 +766,95 @@
     var o = load(kKB(CFG.domain), null);
     if (!o || !o.index) o = { index: [], bodies: {} };
     if (!o.bodies) o.bodies = {};
+    if (!o.chunks) o.chunks = {};
+    if (!o.chunkSigs) o.chunkSigs = {};
     return o;
   }
-  function kbSave(o) { save(kKB(CFG.domain), o); }
+  /* —— 保存前切片（v3.54）：条目入库/更新时先按句切片再落盘，语句保持相对完整 ——
+   * 与 kb_rag.js 的 chunkText 同一套规则（整句优先、句末标点收口、仅超长句才按逗号级再切），
+   * kb_rag.js 未加载时也能切片；kbSave 作为唯一写入口统一兜底同步切片。 */
+  function kbSplitSents(s) {
+    var out = [], cur = "";
+    for (var i = 0; i < s.length; i++) {
+      cur += s.charAt(i);
+      if (/[。！？；!?;\n]/.test(s.charAt(i))) { if (cur.trim()) out.push(cur); cur = ""; }
+    }
+    if (cur.trim()) out.push(cur);
+    return out.length ? out : [s];
+  }
+  function kbSplitClauses(s) {
+    var out = [], cur = "";
+    for (var i = 0; i < s.length; i++) {
+      cur += s.charAt(i);
+      if (/[，,、：:]/.test(s.charAt(i))) { if (cur.trim()) out.push(cur); cur = ""; }
+    }
+    if (cur.trim()) out.push(cur);
+    return out.length ? out : [s];
+  }
+  function kbSliceText(text, size, overlap) {
+    size = size || 520; overlap = overlap || 80;
+    var body = String(text || "").trim();
+    if (!body) return [];
+    var sents = [], raw = body.split(/\n(?=\s*#{1,6}\s|\s*【)|\n\s*\n/);
+    raw.forEach(function (b) {
+      kbSplitSents(b).forEach(function (s) {
+        if (s.length <= size) { sents.push(s); return; }
+        var subs = kbSplitClauses(s), acc = "";
+        subs.forEach(function (c) {
+          if ((acc + c).length > size && acc) { sents.push(acc); acc = c; }
+          else acc += c;
+        });
+        if (acc.trim()) sents.push(acc);
+      });
+    });
+    var flat = [];
+    sents.forEach(function (s) {
+      if (s.length > size * 1.6) { var i = 0; while (i < s.length) { flat.push(s.substr(i, size)); i += size; } }
+      else flat.push(s);
+    });
+    var out = [], cur = "", curSents = [];
+    function pushCur() { if (cur.trim()) out.push(cur.trim()); }
+    flat.forEach(function (s) {
+      if (cur && (cur + s).length > size) {
+        // 重叠预留：给下一片开头留不超过 (size - s.length) 的整句尾部，保证不超长
+        var budget = size - s.length - 1, keep = [], n = 0;
+        if (budget > 0) {
+          for (var i = curSents.length - 1; i >= 0; i--) {
+            var p = curSents[i];
+            if (n + p.length > budget) break;
+            keep.unshift(p); n += p.length;
+            if (n >= Math.min(overlap, budget)) break;
+          }
+        }
+        pushCur();
+        cur = keep.join(""); curSents = keep.slice();
+      }
+      cur += s; curSents.push(s);
+    });
+    pushCur();
+    return out.filter(function (x) { return x && x.replace(/\s/g, "").length > 4; });
+  }
+  function kbSlice(md) { return kbSliceText(md); }
+  function kbSliceSig(body) { body = String(body || ""); return body.length + ":" + body.slice(0, 16) + ":" + body.slice(-16); }
+  // 切片同步：正文变了（或首次入库）才重切，签名避免重复切片开销
+  function kbSyncChunks(o, id, title, body) {
+    var sig = kbSliceSig(body);
+    if (o.chunkSigs[id] === sig && o.chunks[id]) return;
+    o.chunks[id] = kbSliceText((title ? title + "\n" : "") + (body || ""));
+    o.chunkSigs[id] = sig;
+  }
+  function kbSave(o) {
+    // 保存前统一切片：kbAdd / 各类导入 / Hermes 沉淀 / 查询保存 全部经此写入口
+    try {
+      if (o && o.index) {
+        o.chunks = o.chunks || {}; o.chunkSigs = o.chunkSigs || {};
+        o.index.forEach(function (m) {
+          kbSyncChunks(o, m.id, m.title || "", (o.bodies && o.bodies[m.id]) || "");
+        });
+      }
+    } catch (e) {}
+    save(kKB(CFG.domain), o);
+  }
   function kbAdd(meta, md) {
     var o = kbLoad();
     var id = "kb_" + Date.now() + "_" + Math.floor(Math.random() * 1e4).toString(36);
@@ -779,9 +865,9 @@
       ts: new Date().toLocaleString("zh-CN"), domain: CFG.domain
     });
     o.bodies[id] = md || "";
-    kbSave(o);
-    // RAG：入库即切片向量化（异步，失败不影响入库）
-    try { kbRagAdd({ id: id, title: meta.title || "未命名", body: md || "", type: meta.type || "note", source: meta.source || "" }); } catch (e) {}
+    kbSave(o);   // kbSave 内先切片再落盘
+    // RAG：入库即用已存切片向量化（异步，失败不影响入库）
+    try { kbRagAdd({ id: id, title: meta.title || "未命名", body: md || "", type: meta.type || "note", source: meta.source || "", chunks: (o.chunks && o.chunks[id]) || null }); } catch (e) {}
     return id;
   }
   // —— RAG（kb_rag.js 懒加载）——
@@ -818,7 +904,7 @@
   function kbRagRebuild(onProgress) {
     return kbRagEnsure().then(function (R) {
       var o = kbLoad();
-      var docs = o.index.map(function (m) { return { id: m.id, title: m.title, body: o.bodies[m.id] || "", type: m.type, source: m.source }; });
+      var docs = o.index.map(function (m) { return { id: m.id, title: m.title, body: o.bodies[m.id] || "", type: m.type, source: m.source, chunks: (o.chunks && o.chunks[m.id]) || null }; });
       return R.buildIndex(docs, onProgress);
     });
   }
@@ -833,7 +919,7 @@
     return kbSearch(q).slice(0, topK || 6);
   }
   function kbGet(id) { var o = kbLoad(); return { meta: o.index.find(function (x) { return x.id === id; }) || null, md: o.bodies[id] || "" }; }
-  function kbRemove(id) { var o = kbLoad(); o.index = o.index.filter(function (x) { return x.id !== id; }); delete o.bodies[id]; kbSave(o); }
+  function kbRemove(id) { var o = kbLoad(); o.index = o.index.filter(function (x) { return x.id !== id; }); delete o.bodies[id]; delete o.chunks[id]; delete o.chunkSigs[id]; kbSave(o); }
   // BM25-lite：关键词在 title+tags+md 上的命中评分
   function kbScore(rec, q) {
     if (!q) return 1;
@@ -1855,6 +1941,7 @@
     _openKB: openKB,
     // 知识库对外接口（宿主建筑增改时可调用，把参数/操作过程沉淀进知识库）
     kbAdd: kbAdd,
+    kbSliceText: kbSliceText,
     kbList: kbList,
     kbSearch: kbSearch,
     kbContext: kbContext,

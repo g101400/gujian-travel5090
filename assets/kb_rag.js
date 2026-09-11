@@ -38,43 +38,76 @@
   }
 
   /* ---------------- 1. 递归文本切片（RecursiveCharacterTextSplitter 等价） ---------------- */
-  // 按句末标点/换行切句（保留标点，不用 lookbehind，兼容旧 WebView）
+  // 一级：按句末标点/换行切句（保留标点，不用 lookbehind，兼容旧 WebView）
   function splitSentences(s) {
     var out = [], cur = "";
     for (var i = 0; i < s.length; i++) {
       cur += s.charAt(i);
-      if (/[。！？；\n]/.test(s.charAt(i))) { out.push(cur); cur = ""; }
+      if (/[。！？；!?;\n]/.test(s.charAt(i))) { if (cur.trim()) out.push(cur); cur = ""; }
     }
-    if (cur) out.push(cur);
+    if (cur.trim()) out.push(cur);
     return out.length ? out : [s];
   }
+  // 二级：句内按逗号/顿号/冒号再切（仅用于超长句，保证仍以标点结尾）
+  function splitClauses(s) {
+    var out = [], cur = "";
+    for (var i = 0; i < s.length; i++) {
+      cur += s.charAt(i);
+      if (/[，,、：:]/.test(s.charAt(i))) { if (cur.trim()) out.push(cur); cur = ""; }
+    }
+    if (cur.trim()) out.push(cur);
+    return out.length ? out : [s];
+  }
+  // 展平为「句」列表：段落 → 句末标点 → 逗号级 → （极端）硬切
+  function flattenSentences(text, size) {
+    var blocks = String(text || "").split(/\n(?=\s*#{1,6}\s|\s*【)|\n\s*\n/);
+    var res = [];
+    blocks.forEach(function (b) {
+      splitSentences(b).forEach(function (s) {
+        if (s.length <= size) { res.push(s); return; }
+        var subs = splitClauses(s), acc = "";
+        subs.forEach(function (c) {
+          if ((acc + c).length > size && acc) { res.push(acc); acc = c; }
+          else acc += c;
+        });
+        if (acc.trim()) res.push(acc);
+      });
+    });
+    var out2 = [];
+    res.forEach(function (s) {
+      if (s.length > size * 1.6) { var i = 0; while (i < s.length) { out2.push(s.substr(i, size)); i += size; } }
+      else out2.push(s);
+    });
+    return out2;
+  }
+  // 递归切片（语句完整优先）：以「整句」为最小粒度打包，重叠也按整句回溯，绝不在句中断开
   function chunkText(text, opt) {
     opt = opt || {};
     var size = opt.size || CHUNK, overlap = opt.overlap || OVERLAP;
     var body = String(text || "").trim();
     if (!body) return [];
-    // 依次按：标题 → 段落 → 句子 → 硬切
-    var blocks = body.split(/\n(?=\s*#{1,6}\s|\s*【)/);
-    var out = [], buf = "";
-    function pushBuf() {
-      if (!buf.trim()) { buf = ""; return; }
-      if (buf.length <= size * 1.4) { out.push(buf.trim()); buf = ""; return; }
-      // 超长：按句号/换行再切
-      var parts = splitSentences(buf), cur = "";
-      parts.forEach(function (p) {
-        if ((cur + p).length > size && cur) { out.push(cur.trim()); cur = p; }
-        else cur += p;
-      });
-      if (cur.trim()) out.push(cur.trim());
-      buf = "";
-    }
-    blocks.forEach(function (b) {
-      if (b.length > size * 1.4) { pushBuf(); var rest = b;
-        while (rest.length > 0) { out.push(rest.slice(0, size).trim()); rest = rest.slice(size - overlap); }
-      } else if ((buf + "\n" + b).length > size) { pushBuf(); buf = b; }
-      else buf = buf ? (buf + "\n" + b) : b;
+    var sents = flattenSentences(body, size);
+    if (!sents.length) return [];
+    var out = [], cur = "", curSents = [];
+    function pushCur() { if (cur.trim()) out.push(cur.trim()); }
+    sents.forEach(function (s) {
+      if (cur && (cur + s).length > size) {
+        // 重叠预留：给下一片开头留不超过 (size - s.length) 的整句尾部，保证不超长
+        var budget = size - s.length - 1, keep = [], n = 0;
+        if (budget > 0) {
+          for (var i = curSents.length - 1; i >= 0; i--) {
+            var p = curSents[i];
+            if (n + p.length > budget) break;
+            keep.unshift(p); n += p.length;
+            if (n >= Math.min(overlap, budget)) break;
+          }
+        }
+        pushCur();
+        cur = keep.join(""); curSents = keep.slice();
+      }
+      cur += s; curSents.push(s);
     });
-    pushBuf();
+    pushCur();
     return out.filter(function (x) { return x && x.replace(/\s/g, "").length > 4; });
   }
 
@@ -104,7 +137,8 @@
     state.chunks = []; state.df = {}; state.n = 0;
     var all = [];
     (docs || []).forEach(function (d) {
-      var parts = chunkText((d.title ? d.title + "\n" : "") + (d.body || ""));
+      var parts = (d.chunks && d.chunks.length) ? d.chunks.slice()
+        : chunkText((d.title ? d.title + "\n" : "") + (d.body || ""));
       if (!parts.length) parts = [String(d.body || d.title || "").slice(0, CHUNK)];
       parts.forEach(function (t, i) {
         all.push({ id: d.id + "#" + i, docId: d.id, title: d.title || "", source: d.source || "", type: d.type || "", toks: tokenize(t), text: t });
@@ -321,7 +355,8 @@
     var id = doc && doc.id;
     if (!id) return 0;
     state.chunks = state.chunks.filter(function (c) { return c.docId !== id; });
-    var parts = chunkText((doc.title ? doc.title + "\n" : "") + (doc.body || ""));
+    var parts = (doc.chunks && doc.chunks.length) ? doc.chunks.slice()
+      : chunkText((doc.title ? doc.title + "\n" : "") + (doc.body || ""));
     if (!parts.length) parts = [String(doc.body || doc.title || "")];
     var dfAdd = {};
     parts.forEach(function (t, i) {
