@@ -393,14 +393,16 @@
   }
 
   // ---- 导出 ovobj（本应用自洽格式·实验性） ----
-  function exportOvobj() {
+  // #353：fileName 可选（不含扩展名），由 app.js 对话框收集
+  function exportOvobj(fileName) {
     if (!__S().getBuildings().length) { __S().toast("没有可导出的数据"); return; }
     pickScope("ovobj", function (list) {
       var pts = list.map(function (b) { return { name: b.name, lat: b.lat, lon: b.lon }; });
       try {
         var buf = buildOvobj(pts);
         var blob = new Blob([buf], { type: "application/octet-stream" });
-        var fname = __S().APPNAME + "_" + __S().getTodayStr() + ".ovobj";
+        var base = fileName || (__S().APPNAME + "_" + __S().getTodayStr());
+        var fname = base.replace(/[\\/:*?"<>|]/g, "_") + ".ovobj";
         saveBlobOrDownload(blob, fname);
         __S().toast("已导出 ovobj（本应用可读·实验性）：" + fname);
       } catch (e) { __S().toast("导出失败：" + e.message); }

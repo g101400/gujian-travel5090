@@ -235,9 +235,9 @@
 
   var APPNAME = "古建景点打卡";
 
-  var APP_VERSION = "3.7.9";
+  var APP_VERSION = "3.7.10";
 
-  var APP_BUILD_DATE = "2026-09-10"
+  var APP_BUILD_DATE = "2026-09-11"
 
 
 
