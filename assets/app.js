@@ -235,7 +235,7 @@
 
   var APPNAME = "古建景点打卡";
 
-  var APP_VERSION = "3.7.10";
+  var APP_VERSION = "3.7.11";
 
   var APP_BUILD_DATE = "2026-09-11"
 
@@ -4925,7 +4925,7 @@
       '</ul>' +
       '<div class="changelog-ver"><span class="cv">3.7.8</span><span class="cd">2026-09-09</span></div>' +
       '<ul class="changelog-list">' +
-      "<li>版本对齐：水利 / 感知 内部版新增访问口令保护（默认口令=开发者分机号 3305，仅内部版启用；公开版免密）；古建为公开应用、不受口令影响，功能不删不减，全平台回归保持。</li>" +
+      "<li>版本对齐：水利 / 感知 内部版新增访问口令保护（默认口令由开发者掌握（不随包公开），仅内部版启用；公开版免密）；古建为公开应用、不受口令影响，功能不删不减，全平台回归保持。</li>" +
       '</ul>' +
       '<div class="changelog-ver"><span class="cv">3.7.7</span><span class="cd">2026-09-08</span></div>' +
       '<ul class="changelog-list">' +
@@ -6006,9 +6006,18 @@
 
     // 3) v3.3 + v3.46 古建版 tdtKey 设置面板（在 sheetGen 容器中打开）
 
-    //    v3.46：当前密钥默认隐藏（type=password），👁 切换显示；复制需输密码 3305（防他人窃取）
+    //    v3.46：当前密钥默认隐藏（type=password），👁 切换显示；复制需输访问口令（防他人窃取）
 
-    var TDT_PASSWORD = "3305";  // 复制/查看密钥的二次验证密码（4 位数字口令）
+    // v3.74：密钥二次验证不再在源码写死口令；统一复用「访问口令加密凭证」（源码零明文）
+    function keyVerifyPwd(pw, ok, fail) {
+      try {
+        if (window.SecBoot && typeof window.SecBoot.verify === "function") {
+          Promise.resolve(window.SecBoot.verify(pw)).then(function () { ok(); }, function () { if (fail) fail(); });
+          return;
+        }
+      } catch (e) {}
+      ok();  // 无可用凭证时不拦截
+    }
 
     function askPwd(title, cb) {
 
@@ -6060,7 +6069,7 @@
 
           '<button class="tbtn" id="tdtToggleEye" onclick="tdtToggleVisibleGujian()" title="显示/隐藏当前密钥">👁</button>' +
 
-          '<button class="tbtn" onclick="tdtPasteCurGujian()" title="复制（需输密码 3305）">📋 复制</button>' +
+          '<button class="tbtn" onclick="tdtPasteCurGujian()" title="复制（需输访问口令）">📋 复制</button>' +
 
         '</div>' +
 
@@ -6090,7 +6099,7 @@
 
     };
 
-    // v3.46：显示/隐藏当前密钥（显示需输密码 3305，30 秒后自动隐藏）
+    // v3.46：显示/隐藏当前密钥（显示需输访问口令，30 秒后自动隐藏）
 
     window.tdtToggleVisibleGujian = function () {
 
@@ -6100,13 +6109,15 @@
 
         askPwd("👁 显示密钥（需输密码）", function (pw) {
 
-          if (pw !== TDT_PASSWORD) { try { toast("密码错误"); } catch (e) {} return; }
+          keyVerifyPwd(pw, function () {
 
           inp.type = "text"; if (btn) btn.textContent = "🙈";
 
           try { toast("已显示（30 秒后自动隐藏）"); } catch (e) {}
 
           setTimeout(function () { if (inp && inp.type === "text") { inp.type = "password"; if (btn) btn.textContent = "👁"; try { toast("已自动隐藏"); } catch (e) {} } }, 30000);
+
+          }, function () { try { toast("密码错误"); } catch (e) {} });
 
         });
 
@@ -6122,7 +6133,7 @@
 
       askPwd("📋 复制需输密码（防窃取）", function (pw) {
 
-        if (pw !== TDT_PASSWORD) { try { toast("密码错误"); } catch (e) {} return; }
+        keyVerifyPwd(pw, function () {
 
         try {
 
@@ -6133,6 +6144,8 @@
           } else { toast("当前环境不支持剪贴板 API"); }
 
         } catch (e) { try { toast("复制失败"); } catch (e2) {} }
+
+        }, function () { try { toast("密码错误"); } catch (e) {} });
 
       });
 
