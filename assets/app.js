@@ -1,4 +1,4 @@
-/* ===== v3.62 防「运行错误:script error」全局兜底（勿删）=====
+﻿/* ===== v3.62 防「运行错误:script error」全局兜底（勿删）=====
    历史版本/动态注入模块可能裸引用收藏与隐藏菜单的读写函数，一旦某个分支未定义，
    ReferenceError 会被 window.onerror 捕获成「运行错误:script error」并中断菜单渲染。
    这里统一补齐为基于 localStorage 的安全实现，缺失时静默降级。 */
@@ -273,14 +273,14 @@
 
   var editingCheckin = null;
 
-  var filters = { provinces: new Set(), cities: new Set(), types: new Set(), text: "", photoStatus: "all" };
+  var filters = { provinces: new Set(), cities: new Set(), types: new Set(), attrs: new Set(), text: "", photoStatus: "all" };
   var filterCircle = null; // 筛选命中后绘制的绿色虚线圈选层（供清除）
 
   // v3.38：筛选默认值持久化种子——首次安装默认值，故意不为"全部"，避免打开即全量渲染卡顿
 
   //   古建→北京市（城市）；水利/感知→水库所（各自 app.js 内定义本常量）
 
-  var DEFAULT_FILTER_SEED = { provinces: [], cities: ["北京市"], types: [], text: "", photoStatus: "all" };
+  var DEFAULT_FILTER_SEED = { provinces: [], cities: ["北京市"], types: [], attrs: [], text: "", photoStatus: "all" };
 
   function cloneSeed(s) { var o = {}; Object.keys(s).forEach(function (k) { o[k] = Array.isArray(s[k]) ? s[k].slice() : s[k]; }); return o; }
 
@@ -1383,6 +1383,17 @@
 
     }
 
+    // 智能推荐（晚3）：属性结构化条件（dim\u0001val 集合，AND 语义）
+    if (filters.attrs && filters.attrs.size) {
+      var _sattrs = b.attrs || [];
+      var _okAttr = true;
+      filters.attrs.forEach(function (pair) {
+        var _x = pair.split("\u0001"); var _d = _x[0], _v = _x[1];
+        if (!_sattrs.some(function (a) { return a && a[0] === _d && String(a[1]) === _v; })) _okAttr = false;
+      });
+      if (!_okAttr) return false;
+    }
+
     return true;
 
   }
@@ -2388,7 +2399,7 @@
   window.appClearFilter = function () {
 
     clearFilterCircle();
-    filters.provinces.clear(); filters.cities.clear(); filters.types.clear();
+    filters.provinces.clear(); filters.cities.clear(); filters.types.clear(); filters.attrs.clear();
 
     $("genBody").querySelectorAll(".chip").forEach(function (c) { c.classList.remove("on"); });
 
@@ -2435,16 +2446,17 @@
     if (arr.length > 8) arr = arr.slice(0, 8);
     if (!arr.length) return;
     var hint = document.createElement("div"); hint.className = "qf-hint";
-    hint.innerHTML = "💡 进一步查询（智能推荐）：<b>单击</b>复制组合关键词，<b>双击</b>直接进一步查询。";
+    hint.innerHTML = "💡 智能推荐：<b>单击/双击</b>在「" + esc(kw || "") + "」基础上追加该条件并进一步查询（显示对应个数）。";
     box.appendChild(hint);
     var wrap = document.createElement("div"); wrap.className = "qf-chips";
     arr.forEach(function (d) {
       var q = (kw ? kw + " " : "") + d.val;
+      var _readable = (kw ? kw + " " : "") + d.dim + "：" + d.val;
       var c = document.createElement("span"); c.className = "qf-chip";
       c.innerHTML = '<span class="qf-dim">' + esc(d.dim) + "</span>" + esc(d.val) + '<span class="n">' + d.n + "</span>";
-      c.title = "单击复制查询「" + q + "」；双击直接进一步查询";
-      c.addEventListener("click", function () { copyText(q); toast("已复制查询关键词：「" + q + "」（粘贴到查询框按确定即可查询）"); });
-      c.addEventListener("dblclick", function (e) { e.preventDefault(); window.furtherQuery(q); });
+      c.title = "单击/双击：追加条件「" + _readable + "」并进一步查询（显示 " + d.n + " 个）";
+      c.addEventListener("click", function () { window.addFurtherDim(d.dim, d.val); copyText(_readable); hideSmartRecBox(); window.furtherQueryRequery(); });
+      c.addEventListener("dblclick", function (e) { e.preventDefault(); window.addFurtherDim(d.dim, d.val); hideSmartRecBox(); window.furtherQueryRequery(); });
       wrap.appendChild(c);
     });
     box.appendChild(wrap);
@@ -2489,13 +2501,46 @@
       catch (e) { map.setView([clat, clon], 6); }
     }, 160);
   }
+  /* 晚3：智能推荐结构化追加条件（与 passFilter 同源，确保 显示数 = 重查数） */
+  window.addFurtherDim = function (dim, val) {
+    if (!val) return;
+    val = String(val);
+    if (dim === "省份" || dim === "省" || dim === "省/直辖市/自治区") filters.provinces.add(val);
+    else if (dim === "城市") filters.cities.add(val);
+    else if (dim === "类型" || dim === "类别") filters.types.add(val);
+    else filters.attrs.add(dim + "\u0001" + val);
+    saveDefaultFilter();
+  };
+  // 晚2：顶栏「💡 智能推荐(N)」按钮显隐与展开
+  function showSmartRecButton(n) {
+    var b = $("btnSmartRec"); if (!b) return;
+    b.textContent = "💡 智能推荐(" + n + ")";
+    b.style.display = "";
+    hideSmartRecBox();
+  }
+  function hideSmartRecButton() {
+    var b = $("btnSmartRec"); if (b) b.style.display = "none";
+    hideSmartRecBox();
+  }
+  function hideSmartRecBox() {
+    var box = $("queryFurther"); if (box && box.parentNode) box.parentNode.removeChild(box);
+  }
+  window.toggleSmartRec = function () {
+    if ($("queryFurther")) { hideSmartRecBox(); return; }
+    if (window._smartRec) renderQueryFurther(window._smartRec.matched, window._smartRec.kw);
+  };
+  window.furtherQueryRequery = function () {
+    if (typeof window.applyFilterAndJump === "function") window.applyFilterAndJump();
+    else if (typeof window.doQueryConfirm === "function") window.doQueryConfirm();
+  };
+
   window.applyFilterAndJump = function () {
 
     saveDefaultFilter(); // v3.38：确认即写回默认值
 
     var matched = HERITAGE.filter(passFilter);
 
-    if (!matched.length) { clearFilterCircle(); toast("没有符合条件的古建"); closeSheet("sheetGen"); return; }
+    if (!matched.length) { clearFilterCircle(); toast("没有符合条件的古建"); closeSheet("sheetGen"); hideSmartRecButton(); return; }
 
     closeSheet("sheetGen");
 
@@ -2508,7 +2553,13 @@
       toast("找到 " + matched.length + " 个匹配，已用绿圈标出全部位置（点绿圈可清除）");
     }
 
-    renderQueryFurther(matched, filters.text);  // v3.48：命中多结果时给出进一步查询建议
+    // 晚2：智能推荐不再自动弹出，改为顶栏「💡 智能推荐(N)」按钮，点击才展开
+    if (matched.length > 1) {
+      window._smartRec = { matched: matched, kw: filters.text };
+      showSmartRecButton(matched.length);
+    } else {
+      hideSmartRecButton();
+    }
   };
 
 
