@@ -1640,7 +1640,7 @@
       '<button class="btn-cancel" style="flex:1" id="kbRagStat">📊 索引状态</button></div>' +
       '<div style="border-top:1px dashed #ddd;margin:10px 0 6px"></div>' +
       '<h4 style="color:#6b2e2e;margin:4px 0">智能问答（RAG：混合检索 + 大模型）</h4>' +
-      '<div style="display:flex;gap:6px"><input class="f" id="kbRagQ" style="flex:1" placeholder="直接问：闸门启闭顺序是什么？">' +
+      '<div style="display:flex;gap:6px"><input class="f" id="kbRagQ" style="flex:1" placeholder="直接问：古塔的建造年代是什么？">' +
         '<button class="btn-save" id="kbRagGo">智能回答</button></div>' +
       '<div style="display:flex;gap:6px;margin:6px 0"><button class="btn-cancel" style="flex:1" id="kbRagRev">🔄 反向查条目（粘贴内容找出处）</button></div>' +
       '<div id="kbPromptChips" style="font-size:12px;color:#8a7c70;margin:4px 0"></div>' +
@@ -1650,7 +1650,7 @@
       '<input type="file" id="kbFile" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.md,.txt,.html,.htm,.json,.zip,.png,.jpg,.jpeg,.webp,.bmp" style="display:none">' +
       '<div style="border-top:1px dashed #ddd;margin:10px 0 6px"></div>' +
       '<h4 style="color:#6b2e2e;margin:4px 0">知识库查询（先本地，本地无且允许再联网）</h4>' +
-      '<div style="display:flex;gap:6px"><input class="f" id="kbQ2" style="flex:1" placeholder="输入问题，如：潮河所管辖哪些闸">' +
+      '<div style="display:flex;gap:6px"><input class="f" id="kbQ2" style="flex:1" placeholder="输入问题，如：颐和园有哪些景点">' +
         '<button class="btn-save" id="kbQrun">查询</button></div>' +
       '<div id="kbQout" style="margin-top:8px"></div>' +
       '<label class="f">搜索知识库条目</label><input class="f" id="kbQ" placeholder="关键词…">' +
@@ -1887,7 +1887,7 @@
   function buildBuildingBody(r) {
     var L = [];
     L.push("# " + (r.name || "?"));
-    if (r.office) L.push("- 管理所：" + r.office);
+    if (r.office) L.push("- 管理单位：" + r.office);
     if (r.station) L.push("- 站：" + r.station);
     if (r.btype) L.push("- 类型：" + r.btype);
     if (r.chan) L.push("- 渠道：" + r.chan);

@@ -653,10 +653,29 @@
     });
   }
 
+  /* ================= 结果点击定位（v3.77）================= */
+  // 按名称在本项目全局数据中查找条目并跳转地图位置（兼容 水利/古建/感知 三种数据名）
+  function locateEntity(name) {
+    if (!name) return false;
+    var list = items() || [];
+    function norm(s) { return String(s || "").replace(/\s+/g, "").replace(/管理所/g, "所"); }
+    var b = null;
+    for (var i = 0; i < list.length; i++) {
+      var n = itemName(list[i]);
+      if (n && (n === name || norm(n) === norm(name))) { b = list[i]; break; }
+    }
+    if (!b) { toast("未找到「" + name + "」的地图位置"); return false; }
+    var lat = b.lat != null ? b.lat : b.latitude, lon = b.lon != null ? b.lon : b.longitude;
+    if (lat == null || lon == null) { toast("「" + name + "」暂无坐标，无法定位"); return false; }
+    if (global.appGoToMap) global.appGoToMap(lat, lon, 16, "sheetGen");
+    else if (global.map) global.map.setView([lat, lon], 16);
+    return true;
+  }
+
   /* ================= UI ================= */
   function uiReverse() {
     openGen("① 参数反查" + CFG.label, '<div style="font-size:13px;color:#666;margin-bottom:8px">' +
-      '用自然语言描述参数即可反查条目，例如：<b>宽度3米的闸门</b>、<b>两米宽的公路桥</b>、<b>设计流量70的进水闸</b>。</div>' +
+      '用自然语言描述参数即可反查条目，例如：<b>高20米的古塔</b>、<b>三开间的戏楼</b>、<b>清代的石碑</b>。</div>' +
       '<input class="f" id="kbvQ" placeholder="请输入参数描述 / 自然语言" style="width:100%;box-sizing:border-box">' +
       '<div class="form-actions"><button class="btn-save" id="kbvGo">检索</button>' +
       '<button class="btn-cancel" id="kbvRebuild">重建索引</button></div>' +
@@ -669,24 +688,28 @@
       var h = '<p style="color:#666;font-size:12px">命中 ' + res.length + ' 条，用时 ' + (Date.now() - t0) + ' ms</p>';
       if (!res.length) h += '<p style="color:#c0392b">未命中，试试更简短的关键词。</p>';
       res.forEach(function (r, i) {
-        h += '<div style="border:1px solid #eee;border-radius:8px;padding:8px;margin:6px 0">' +
+        h += '<div class="kbv-res" data-name="' + esc(r.name) + '" style="border:1px solid #eee;border-radius:8px;padding:8px;margin:6px 0;cursor:pointer">' +
           '<div style="font-weight:600">' + (i + 1) + '. ' + esc(r.name) +
           (r.type ? ' <span style="color:#8a939b;font-weight:400">（' + esc(r.type) + '）</span>' : '') +
           ' <span style="float:right;color:#1a6fc4">相关度 ' + Math.round(r.score * 100) + '%</span></div>' +
           (r.bestParam ? '<div style="font-size:12px;color:#555;margin-top:4px">关键参数：' + esc(r.bestParam) + '</div>' : '') +
           (r.attrs && r.attrs.length ? '<div style="font-size:12px;color:#777;margin-top:2px">' +
             esc(r.attrs.slice(0, 8).map(function (a) { return a[0] + "：" + (a[1] || ""); }).join("；")) + '</div>' : '') +
+          '<div style="font-size:11px;color:#1a6fc4;margin-top:4px">📍 点击在地图定位</div>' +
           '</div>';
       });
       $("kbvOut").innerHTML = h;
+      Array.prototype.slice.call($("kbvOut").querySelectorAll(".kbv-res")).forEach(function (el) {
+        el.onclick = function () { locateEntity(el.getAttribute("data-name")); };
+      });
     };
     $("kbvRebuild").onclick = function () { buildIndex(true); toast("索引已重建（" + ensure().items.length + " 条）"); };
   }
 
   function uiStats() {
     var st = stats();
-    var h = '<p style="color:#666;font-size:13px">共收录 <b>' + st.total + '</b> 个' + CFG.label + '。也可以直接问：<b>有多少个闸门</b>、<b>进水闸和节制闸各多少</b>。</p>' +
-      '<input class="f" id="kbvSQ" placeholder="自然语言统计，如：进水闸 节制闸 各多少个" style="width:100%;box-sizing:border-box">' +
+    var h = '<p style="color:#666;font-size:13px">共收录 <b>' + st.total + '</b> 个' + CFG.label + '。也可以直接问：<b>有多少个古塔</b>、<b>戏楼和牌坊各多少</b>。</p>' +
+      '<input class="f" id="kbvSQ" placeholder="自然语言统计，如：古塔 戏楼 各多少个" style="width:100%;box-sizing:border-box">' +
       '<div class="form-actions"><button class="btn-save" id="kbvSGo">统计</button></div>' +
       '<div id="kbvSOut" style="margin-top:10px"></div>' +
       '<h4 style="margin:12px 0 6px">按类型</h4><div style="max-height:220px;overflow:auto;font-size:13px">' +
@@ -704,7 +727,7 @@
 
   function uiDocs() {
     var docs = docList();
-    var h = '<p style="font-size:13px;color:#666">导入防汛调度预案、闸门安装规程等文档（.txt/.md/.csv/.html 直接读取；.docx/.pdf 建议先用「外部文档入库」转文本）。' +
+    var h = '<p style="font-size:13px;color:#666">导入古建修缮方案、景点介绍等文档（.txt/.md/.csv/.html 直接读取；.docx/.pdf 建议先用「外部文档入库」转文本）。' +
       '系统自动切片、向量化，并按' + CFG.label + '名称建立关联。</p>' +
       '<input type="file" id="kbvDoc" accept=".txt,.md,.csv,.json,.html,.htm" style="width:100%">' +
       '<div class="form-actions"><button class="btn-save" id="kbvDocAdd">导入并切片入库</button></div>' +
@@ -715,7 +738,7 @@
         return '<div style="padding:4px 0;border-bottom:1px solid #f2f2f2">' + esc(d.name) + ' · ' + d.chunks.length + ' 片 · ' +
           '<span style="color:#c0392b;cursor:pointer" data-del="' + i + '">删除</span></div>';
       }).join("") : '<div style="color:#999">暂无</div>') + '</div>' +
-      '<input class="f" id="kbvDocQ" placeholder="检索预案内容，如：闸门启闭 调度 要求" style="width:100%;box-sizing:border-box;margin-top:8px">' +
+      '<input class="f" id="kbvDocQ" placeholder="检索文档内容，如：古塔结构 修缮 要求" style="width:100%;box-sizing:border-box;margin-top:8px">' +
       '<div class="form-actions"><button class="btn-save" id="kbvDocGo">检索文档</button></div>' +
       '<div id="kbvDocRes" style="margin-top:8px"></div>';
     openGen("③ 预案 / 规程文档入库与关联", h);
@@ -736,11 +759,18 @@
       if (!q) { toast("请输入检索词"); return; }
       var res = searchDocs(q, 8);
       $("kbvDocRes").innerHTML = res.length ? res.map(function (c, i) {
-        return '<div style="border:1px solid #eee;border-radius:8px;padding:8px;margin:6px 0;font-size:13px">' +
+        var _lnk = (c.links && c.links.length) ? c.links[0] : "";
+        return '<div class="kbv-res" data-name="' + esc(_lnk) + '" style="border:1px solid #eee;border-radius:8px;padding:8px;margin:6px 0;font-size:13px' + (_lnk ? ';cursor:pointer' : '') + '">' +
           '<div style="color:#1a6fc4">[' + (i + 1) + '] 《' + esc(c.doc) + '》 相关度 ' + Math.round(c.score * 100) + '%' +
           (c.links && c.links.length ? ' · 关联：' + esc(c.links.slice(0, 3).join("、")) : '') + '</div>' +
-          '<div style="color:#555;margin-top:4px">' + esc(c.text.slice(0, 220)) + '…</div></div>';
+          '<div style="color:#555;margin-top:4px">' + esc(c.text.slice(0, 220)) + '…</div>' +
+          (_lnk ? '<div style="font-size:11px;color:#1a6fc4;margin-top:4px">📍 点击在地图定位：' + esc(_lnk) + '</div>' : '') +
+          '</div>';
       }).join("") : '<div style="color:#999">未命中</div>';
+      if (res.length) Array.prototype.slice.call($("kbvDocRes").querySelectorAll(".kbv-res[data-name]")).forEach(function (el) {
+        var _n = el.getAttribute("data-name"); if (!_n) return;
+        el.onclick = function () { locateEntity(_n); };
+      });
     };
     var box = $("genBody");
     Array.prototype.slice.call(box.querySelectorAll("[data-del]")).forEach(function (el) {
@@ -754,7 +784,7 @@
   function uiReport() {
     openGen("④ 生成报告（doc / docx · 预览打印）",
       '<p style="font-size:13px;color:#666">输入问题后自动生成结构化报告（概述 / 相关' + CFG.label + ' / 统计 / 类型释义 / 文档片段 / 结论），可导出 Word 或预览打印（打印时可另存 PDF）。</p>' +
-      '<input class="f" id="kbvRQ" placeholder="如：进水闸的设计流量与闸门规格情况" style="width:100%;box-sizing:border-box">' +
+      '<input class="f" id="kbvRQ" placeholder="如：古塔的建筑结构与修缮情况" style="width:100%;box-sizing:border-box">' +
       '<div class="form-actions"><button class="btn-save" id="kbvRGo">生成</button></div>' +
       '<div id="kbvROut" style="margin-top:10px"></div>');
     var last = null;
@@ -767,6 +797,17 @@
         '<button class="btn-save" id="kbvRX">导出 Word(.docx)</button>' +
         '<button class="btn-cancel" id="kbvRP">预览 / 打印</button>' +
         '<button class="btn-cancel" id="kbvRC">复制全文</button></div>';
+      // v3.77：报告「相关X」条目点击定位（解析 h4 标题中的建筑物名称）
+      try {
+        var _rbox = $("kbvROut");
+        Array.prototype.slice.call(_rbox.querySelectorAll("h4")).forEach(function (h4) {
+          var _m = h4.textContent.match(/^\d+\.\s*(.+?)\s*[（(]/);
+          var _nm = _m ? _m[1].trim() : null;
+          if (!_nm) return;
+          h4.style.cursor = "pointer"; h4.style.color = "#1a6fc4"; h4.title = "点击在地图定位：" + _nm;
+          h4.onclick = function () { locateEntity(_nm); };
+        });
+      } catch (e) {}
       $("kbvRD").onclick = function () { exportDoc(q, rep.html); };
       $("kbvRX").onclick = function () { exportDocx(q, rep.text.split("\n")); };
       $("kbvRP").onclick = function () { previewPrint(rep.title, rep.html); };

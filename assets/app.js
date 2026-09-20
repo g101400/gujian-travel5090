@@ -1795,6 +1795,11 @@
   }
 
   window.openSheet = openSheet; window.closeSheet = closeSheet;
+  // v3.77：全局地图跳转封装（供 kb_vector 等跨脚本模块点击定位调用；闭包捕获本作用域的 map）
+  window.appGoToMap = function (lat, lon, zoom, sheetId) {
+    if (sheetId) { try { closeSheet(sheetId); } catch (e) {} }
+    if (map && lat != null && lon != null) map.setView([lat, lon], zoom || 16);
+  };
   // 全局桥接②：尾部注入模块（游记、升级/备份、知识库）裸引用以下闭包函数，不暴露则「运行错误:script error」
   window.$ = $; window.esc = esc; window.toast = toast;
   window.save = save; window.compressDataUrlIfBig = compressDataUrlIfBig;

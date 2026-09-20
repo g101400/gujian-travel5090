@@ -141,7 +141,7 @@
     openGen("智能模糊检索",
       '<div style="font-size:13px;color:#555;margin-bottom:8px">支持错字、简写、别名的模糊匹配（标题 / 标签 / 来源 + 知识库片段）。' +
       (on ? ' <b style="color:#1a6fc4">强制联网：开</b>' : ' <span style="color:#888">强制联网：关（本地优先）</span>') + '</div>' +
-      '<input id="kbFzQ" placeholder="输入关键词，如：闸门 启闭机 / 管理所" style="width:100%;box-sizing:border-box;padding:10px;border:1px solid #cfd8e3;border-radius:8px" />' +
+      '<input id="kbFzQ" placeholder="输入关键词，如：古塔 戏楼 / 寺庙" style="width:100%;box-sizing:border-box;padding:10px;border:1px solid #cfd8e3;border-radius:8px" />' +
       '<div class="up-btns" style="margin-top:10px">' +
       '<button class="btn-save" id="kbFzGo">🔎 检索</button>' +
       '<button class="btn-save" id="kbFzAi">✨ 智能作答</button>' +
