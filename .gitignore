@@ -28,11 +28,12 @@ native-shell/win-gujian-webview2/publish*/
 native-shell/android-gujian/assets/
 native-shell/android-gujian/bin/
 native-shell/android-gujian/build/
-native-shell/android-gujian/*.jks        # 签名密钥，严禁入库
-native-shell/android-gujian/*.apk
-native-shell/android-gujian/*.idsig
-native-shell/android-gujian/*.class
-native-shell/android-gujian/*.dex
+# 签名密钥 / 安装包 / 编译物：严禁入库（递归覆盖 obj/ dex/ 等子目录）
+native-shell/android-gujian/**/*.jks
+native-shell/android-gujian/**/*.apk
+native-shell/android-gujian/**/*.idsig
+native-shell/android-gujian/**/*.class
+native-shell/android-gujian/**/*.dex
 native-shell/android-gujian/res_compiled.zip
 
 # ===== 古建 iOS 打包产物（可托管 zip，不入库；PWA 壳 pwa-shell/ 入库）=====
