@@ -1800,6 +1800,48 @@
     if (sheetId) { try { closeSheet(sheetId); } catch (e) {} }
     if (map && lat != null && lon != null) map.setView([lat, lon], zoom || 16);
   };
+  // v3.78：智能反查/报告/文档结果点击定位——忽略筛选选项，强制在地图上显示该条目图标并弹窗
+  window.appFocusBuilding = function (b, name) {
+    if (!b) return false;
+    var lat, lon;
+    if (b.geom === "Line" && b.line && b.line.length) {
+      var mid = b.line[Math.floor(b.line.length / 2)];
+      lon = mid[0]; lat = mid[1];
+    } else {
+      lat = (b.lat != null) ? b.lat : b.latitude;
+      lon = (b.lon != null) ? b.lon : b.longitude;
+    }
+    if (lat == null || lon == null) { toast("该条目无坐标信息，无法定位"); return false; }
+    // 退出列表视图，确保地图可见
+    listMode = false;
+    var lv = $("listView"), mp = $("map");
+    if (lv) lv.style.display = "none";
+    if (mp) mp.style.display = "block";
+    // 若该条目真实 marker 仍存在（未被筛选隐藏），直接复用并弹窗
+    if (b.id != null && MARKERS[b.id]) {
+      try { MARKERS[b.id].openPopup(); } catch (e) {}
+      map.setView([lat, lon], 16);
+      setTimeout(function () { try { map.invalidateSize(); } catch (e) {} }, 150);
+      return true;
+    }
+    // 否则忽略筛选，强制叠加一个高亮定位图标
+    if (window._focusMarker) { try { map.removeLayer(window._focusMarker); } catch (e) {} window._focusMarker = null; }
+    var nm = name || b.name || b.title || b.mc || "目标条目";
+    var pin = '<div style="transform:translate(-50%,-100%);text-align:center">' +
+      '<div style="background:#e8312f;color:#fff;font-size:12px;line-height:1.4;padding:3px 9px;border-radius:11px;box-shadow:0 2px 6px rgba(0,0,0,.35);white-space:nowrap">' + esc(nm) + '</div>' +
+      '<div style="width:0;height:0;margin:0 auto;border-left:7px solid transparent;border-right:7px solid transparent;border-top:11px solid #e8312f"></div>' +
+      '</div>';
+    window._focusMarker = L.marker([lat, lon], {
+      icon: L.divIcon({ className: "kbv-focus-pin", html: pin, iconSize: [1, 1], iconAnchor: [0, 0] }),
+      zIndexOffset: 1000
+    }).addTo(map);
+    if (typeof popupHtml === "function") { try { window._focusMarker.bindPopup(popupHtml(b)); } catch (e) {} }
+    try { window._focusMarker.openPopup(); } catch (e) {}
+    map.setView([lat, lon], 16);
+    setTimeout(function () { try { map.invalidateSize(); } catch (e) {} }, 150);
+    return true;
+  };
+
   // 全局桥接②：尾部注入模块（游记、升级/备份、知识库）裸引用以下闭包函数，不暴露则「运行错误:script error」
   window.$ = $; window.esc = esc; window.toast = toast;
   window.save = save; window.compressDataUrlIfBig = compressDataUrlIfBig;
@@ -1978,7 +2020,17 @@
 
   window.restoreAllHiddenFromPanel = function () { setHiddenMenus([]); try { buildMenu(); } catch (e) {} openHiddenMenuList(); toast("已恢复全部隐藏的子菜单"); };
 
-  function buildMenu() {
+  function appSmartAIHidden() {
+  try { var v = localStorage.getItem("smartAIHidden"); return v !== "0"; } catch (e) { return true; }
+}
+function toggleSmartAI() {
+  var v = appSmartAIHidden() ? "0" : "1";
+  try { localStorage.setItem("smartAIHidden", v); } catch (e) {}
+  if (typeof buildMenu === "function") buildMenu();
+  toast(v === "1" ? "已隐藏「智能AI / 知识库与智能」子菜单" : "已恢复显示「智能AI / 知识库与智能」子菜单");
+}
+
+function buildMenu() {
 
     var topItems = [
 
@@ -2068,6 +2120,9 @@
 
     groups.push({ g: "设置", ico: "⚙️", items: [
 
+      { k: "toggleSmartAI", ico: "🤖", t: (appSmartAIHidden() ? "⬆️ 一键显示智能AI子菜单" : "🙈 一键隐藏智能AI子菜单"), f: function () { toggleSmartAI(); } },
+
+
       { ico: "🙈", t: "恢复隐藏的子菜单（全部）", f: function () { closeSheet("sheetMenu"); restoreAllHiddenMenus(); } },
 
       { ico: "🗂️", t: "已隐藏子菜单列表（点击恢复）", f: function () { closeSheet("sheetMenu"); openHiddenMenuList(); } },
@@ -2091,6 +2146,7 @@
     if (window.AIModule && typeof AIModule.getMenuGroups === "function") {
 
       AIModule.getMenuGroups().forEach(function (g) {
+        if (appSmartAIHidden()) return;
 
         var ex = groups.find(function (x) { return x.g === g.g; });
 
@@ -2106,6 +2162,7 @@
     if (window.KBCore && typeof KBCore.getMenuGroups === "function") {
 
       KBCore.getMenuGroups().forEach(function (g) {
+        if (appSmartAIHidden()) return;
 
         g.items.forEach(function (it) { if (!it.k) it.k = "m:" + it.t; });
 
@@ -6870,6 +6927,7 @@ function nmOpenList() {
  * 智能AI 查询（把全部游记/备忘录作为上下文，调用 AIModule.ask）
  * ========================================================================== */
 function nmAskAI() {
+    if (appSmartAIHidden()) { toast("智能AI 已隐藏：请到 设置 → 一键显示智能AI子菜单 开启"); return; }
   if (!nmCfg) { try { toast("模块未初始化"); } catch (_) {} return; }
   nmEnsureStyle();
   var all = nmGetAll();
