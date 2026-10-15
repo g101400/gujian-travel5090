@@ -155,7 +155,7 @@
 
   // ② window.TIANDITU_TOKENS（index.html 环境配置） ③ 内置默认
 
-  var TOKEN_BROWSER_DEFAULT = "61691764ff68bf341c4c9c4770b24b5f";
+  var TOKEN_BROWSER_DEFAULT = "";
 
   /* ---------- v3.46：全局 script error 拦截 + 上报（用对排查线上静默 script error）----------
 
